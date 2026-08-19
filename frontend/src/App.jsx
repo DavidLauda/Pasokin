@@ -5,6 +5,7 @@ import RequirementForm from './components/RequirementForm';
 import OptimizationDashboard from './components/OptimizationDashboard';
 import WhatsAppStatusModal from './components/WhatsAppStatusModal';
 import SupplierRepliesPanel from './components/SupplierRepliesPanel';
+import SupplierManagement from './components/SupplierManagement';
 import client from './api/client';
 
 function App() {
@@ -73,12 +74,12 @@ function App() {
         {/* Navigation Links */}
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
             <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-50 text-amber-600 font-bold transition-all">
-                <div className="w-1.5 h-4 bg-amber-500 rounded-full"></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('form');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState !== 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState !== 'suppliers' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-semibold transition-all">
-                <div className="w-1.5 h-4 bg-transparent rounded-full"></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Manajemen Supplier
             </a>
             <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-semibold transition-all">
@@ -105,7 +106,9 @@ function App() {
         <header className="h-20 flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-10">
             <div className="flex items-center gap-4">
                 <h1 className="text-2xl font-extrabold text-slate-900">
-                    {appState === 'form' ? 'Dashboard Kebutuhan' : appState === 'replies' ? 'Inbox Supplier' : 'Hasil Optimasi AI'}
+                    {appState === 'form' ? 'Dashboard Kebutuhan' : 
+                     appState === 'replies' ? 'Inbox Supplier' : 
+                     appState === 'suppliers' ? 'Manajemen Supplier' : 'Hasil Optimasi AI'}
                 </h1>
             </div>
             
@@ -241,6 +244,10 @@ function App() {
                 onShortfall={handleShortfall}
              />
           </div>
+        )}
+
+        {appState === 'suppliers' && (
+          <SupplierManagement />
         )}
             </div>
         </div>
