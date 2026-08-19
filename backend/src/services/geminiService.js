@@ -40,11 +40,8 @@ function heuristicParser(rawInput) {
 }
 
 async function parseRequirementIntent(rawInput) {
-    if (configService.isDemoMode()) {
-        console.log("[Mock] Using heuristic parser for:", rawInput);
-        await sleep(1500); // Artificial delay to feel real
-        return heuristicParser(rawInput);
-    }
+    // Hybrid Mode: Always use Gemini
+    console.log("[AI] Parsing requirement intent using Gemini for:", rawInput);
     
     try {
         const prompt = `Parse the following raw material requirement into a JSON object with this exact shape:
@@ -65,7 +62,7 @@ The priority values must sum to 100. If priorities are not specified, assign a b
 Raw requirement: "${rawInput}"`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.6-flash',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
@@ -88,10 +85,8 @@ Raw requirement: "${rawInput}"`;
 async function generateAllocationReasoning(requirement, allocations, savingsPercent) {
     const fallbackReasoning = `Berdasarkan analisis algoritma optimasi multi-kriteria kami, kami merekomendasikan pemecahan kuantitas pesanan ini ke beberapa pemasok terpilih untuk mengoptimalkan prioritas pengadaan Anda (Biaya: ${requirement.priority?.cost}%, Kecepatan: ${requirement.priority?.speed}%, Risiko: ${requirement.priority?.risk}%). Estimasi penghematan yang bisa didapatkan adalah ${savingsPercent}%.`;
 
-    if (configService.isDemoMode()) {
-        await sleep(1500);
-        return fallbackReasoning;
-    }
+    // Hybrid Mode: Always use Gemini
+    console.log("[AI] Generating reasoning...");
 
     try {
         const prompt = `Anda adalah asisten AI Pengadaan Barang (Pasokin).
@@ -106,7 +101,7 @@ Alokasi:
 ${JSON.stringify(allocations, null, 2)}`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.6-flash',
             contents: prompt
         });
 
@@ -140,10 +135,8 @@ Terima kasih atas waktu dan kerja samanya.
 Salam,
 ${companyName}`;
 
-    if (configService.isDemoMode()) {
-        await sleep(500);
-        return fallbackMessage;
-    }
+    // Hybrid Mode: Always use Gemini
+    console.log("[AI] Generating WA message...");
 
     try {
         const prompt = `Anda adalah asisten pengadaan (Pasokin). Buat pesan WhatsApp RFQ (Request for Quotation) B2B yang formal, sopan, dan profesional dalam Bahasa Indonesia.
@@ -161,7 +154,7 @@ Data Supplier:
 Pengirim: ${companyName}`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.6-flash',
             contents: prompt
         });
 
@@ -186,26 +179,8 @@ async function generateWAMessagesForAllocations(allocations, requirement, compan
 }
 
 async function classifySupplierReply(requirementSnapshot, allocationSnapshot, replyText) {
-    if (configService.isDemoMode()) {
-        await sleep(2000);
-        if (replyText.toLowerCase().includes('bisa') || replyText.toLowerCase().includes('oke') || replyText.toLowerCase().includes('siap')) {
-            return {
-                classification: "confirmed",
-                ai_summary: "Supplier menyetujui kuantitas, harga, dan jadwal sesuai permintaan.",
-                ai_extracted: {
-                    qty: allocationSnapshot.qty,
-                    price: allocationSnapshot.price,
-                    lead_time_days: allocationSnapshot.lead_time_days
-                }
-            };
-        } else {
-            return {
-                classification: "needs_manual_review",
-                ai_summary: "Supplier tampaknya melakukan negosiasi ulang atau bertanya.",
-                ai_extracted: null
-            };
-        }
-    }
+    // Hybrid Mode: Always use Gemini
+    console.log("[AI] Classifying supplier reply...");
 
     try {
         const prompt = `Anda adalah asisten AI (Pasokin). Anda akan diberikan histori penawaran harga (RFQ) dan balasan terbaru dari supplier di WhatsApp.
@@ -235,7 +210,7 @@ PENTING: Output HARUS berupa JSON murni dengan format berikut:
 }`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.6-flash',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"

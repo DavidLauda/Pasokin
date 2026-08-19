@@ -13,6 +13,9 @@ router.get('/', (req, res) => {
     if (req.query.status) {
         replies = replies.filter(r => r.classification === req.query.status);
     }
+    if (req.query.dispatch_id) {
+        replies = replies.filter(r => r.dispatch_id === req.query.dispatch_id);
+    }
     
     // Attach dispatch snapshots for UI comparison
     const allLogs = dispatchLog.getAllLogs();

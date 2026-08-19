@@ -4,6 +4,7 @@ const dispatchLog = require('./dispatchLog');
 const repliesStore = require('./repliesStore');
 const geminiService = require('./geminiService');
 const crypto = require('crypto');
+const configService = require('./configService');
 
 let sock = null;
 let connectionState = 'disconnected'; 
@@ -32,9 +33,14 @@ async function processReplyClassification(replyEntry, latestDispatch) {
 }
 
 async function initWhatsApp() {
-    if (process.env.DEMO_MODE === 'true') {
+    if (configService.isDemoMode()) {
         console.log("[MOCK] WhatsApp Service running in DEMO_MODE. No real connection will be made.");
         connectionState = 'connected';
+        return;
+    }
+
+    if (sock) {
+        console.log("[WhatsApp] Already initialized.");
         return;
     }
 
@@ -124,7 +130,7 @@ async function initWhatsApp() {
 }
 
 async function sendMessage(phone, message) {
-    if (process.env.DEMO_MODE === 'true') {
+    if (configService.isDemoMode()) {
         console.log(`[MOCK] Mengirim WA ke ${phone}...`);
         await new Promise(r => setTimeout(r, 1500));
         console.log(`[MOCK] Pesan terkirim ke ${phone}`);
@@ -160,15 +166,24 @@ async function getStatus() {
         }
     }
     return {
-        connectionState: process.env.DEMO_MODE === 'true' ? 'connected' : connectionState,
+        connectionState: configService.isDemoMode() ? 'connected' : connectionState,
         qr: qrBase64,
-        isDemo: process.env.DEMO_MODE === 'true'
+        isDemo: configService.isDemoMode()
     };
+}
+
+function reinitialize() {
+    if (!configService.isDemoMode() && !sock) {
+        initWhatsApp();
+    } else if (configService.isDemoMode()) {
+        connectionState = 'connected';
+    }
 }
 
 module.exports = {
     initWhatsApp,
     sendMessage,
     getStatus,
-    processReplyClassification
+    processReplyClassification,
+    reinitialize
 };

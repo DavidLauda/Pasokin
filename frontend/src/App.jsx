@@ -4,6 +4,7 @@ import { Bot, Cpu } from 'lucide-react';
 import RequirementForm from './components/RequirementForm';
 import OptimizationDashboard from './components/OptimizationDashboard';
 import SupplierManagement from './components/SupplierManagement';
+import TransactionHistory from './components/TransactionHistory';
 import client from './api/client';
 
 function App() {
@@ -17,6 +18,35 @@ function App() {
 
   const handleConfirm = (data) => {
     setOptimizationResult(data);
+    setAppState('dashboard');
+  };
+
+  const handleOpenHistoryDetail = (historyItem) => {
+    // Reconstruct the optimizationResult from history logs
+    const mockOptimizationResult = {
+        requirement: historyItem.requirement,
+        optimization: {
+            recommended_allocations: historyItem.suppliers.map(s => ({
+                ...s.allocation_snapshot,
+                supplier_id: s.supplier_id,
+                name: s.name,
+                phone: s.phone,
+                price_per_unit: s.allocation_snapshot.price
+            })),
+            ai_reasoning: "Transaksi ini direkonstruksi dari riwayat.",
+            savings_estimate_percent: 0,
+            candidates: historyItem.suppliers.map(s => ({
+                ...s.allocation_snapshot,
+                supplier_id: s.supplier_id,
+                name: s.name,
+                phone: s.phone,
+                price_per_unit: s.allocation_snapshot.price
+            }))
+        },
+        dispatch_id: historyItem.dispatch_id,
+        isHistorical: true
+    };
+    setOptimizationResult(mockOptimizationResult);
     setAppState('dashboard');
   };
 
@@ -53,16 +83,16 @@ function App() {
 
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
             <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input'); setOptimizationResult(null);}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState !== 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState !== 'suppliers' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input'); setOptimizationResult(null);}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['input', 'loading_dashboard', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${['input', 'loading_dashboard', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
             <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                 <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Manajemen Supplier
             </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-semibold transition-all">
-                <div className="w-1.5 h-4 bg-transparent rounded-full"></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('history');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'history' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState === 'history' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Riwayat Transaksi
             </a>
             <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-semibold transition-all">
@@ -138,10 +168,13 @@ function App() {
                 {appState === 'dashboard' && optimizationResult && (
                     <div className="space-y-4">
                         <button 
-                            onClick={() => { setAppState('input'); setOptimizationResult(null); }} 
+                            onClick={() => { 
+                                setAppState(optimizationResult.isHistorical ? 'history' : 'input'); 
+                                setOptimizationResult(null); 
+                            }} 
                             className="px-5 py-2 text-sm font-bold bg-slate-100 border border-slate-200 rounded-xl shadow-sm text-slate-700 hover:bg-slate-200 hover:shadow transition-all"
                         >
-                            &larr; Pengadaan Baru
+                            &larr; {optimizationResult.isHistorical ? 'Kembali ke Riwayat' : 'Pengadaan Baru'}
                         </button>
                         <OptimizationDashboard 
                             data={optimizationResult}
@@ -153,6 +186,11 @@ function App() {
                 {/* Supplier Management */}
                 {appState === 'suppliers' && (
                     <SupplierManagement />
+                )}
+
+                {/* Transaction History */}
+                {appState === 'history' && (
+                    <TransactionHistory onOpenDashboard={handleOpenHistoryDetail} />
                 )}
             </div>
         </div>

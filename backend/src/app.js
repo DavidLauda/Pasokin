@@ -24,11 +24,13 @@ app.use('/api/wa', waRouter);
 app.use('/api/wa-replies', waRepliesRouter);
 app.use('/api/settings', settingsRouter);
 
+const configService = require('./services/configService');
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    demoMode: process.env.DEMO_MODE === 'true'
+    demoMode: configService.isDemoMode()
   });
 });
 

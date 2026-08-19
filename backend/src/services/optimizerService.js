@@ -58,19 +58,12 @@ function optimizeAllocation(requirement, candidates) {
     if (!remainingQty || remainingQty <= 0) remainingQty = 1;
 
     for (const supplier of scoredCandidates) {
-        if (remainingQty <= 0) break;
-
-        // Tentukan jumlah yang bisa disuplai oleh supplier ini
-        // Kita ambil sebanyak-banyaknya hingga kapasitas maksimal mereka, 
-        // tapi tidak boleh melebihi sisa qty yang sedang dicari
-        let qtyToTake = Math.min(remainingQty, supplier.max_capacity_qty);
+        // Bagi kuantitas secara merata ke semua supplier agar semuanya mendapat blast RFQ
+        const idealQty = Math.ceil(requirement.quantity / scoredCandidates.length);
+        let qtyToTake = Math.min(supplier.max_capacity_qty, idealQty);
 
         // Cek constraint MOQ (Minimum Order Quantity)
         if (qtyToTake < supplier.min_order_qty) {
-            // Jika kebutuhan kita lebih kecil dari MOQ mereka, dan kita SUDAH mengambil 
-            // dari supplier lain (ada alokasi sebelumnya), kita skip supplier ini.
-            if (allocations.length > 0) continue;
-            // Jika ini supplier pertama (belum ada alokasi), paksa naik ke MOQ
             qtyToTake = supplier.min_order_qty;
         }
 
@@ -78,14 +71,10 @@ function optimizeAllocation(requirement, candidates) {
 
         // Cek Constraint Budget
         if (costToTake > remainingBudget) {
-            // Hitung sisa budget cukup untuk berapa qty?
             let maxQtyForBudget = Math.floor(remainingBudget / supplier.price_per_unit);
-            
-            // Jika budget hanya cukup untuk di bawah MOQ, skip supplier ini
             if (maxQtyForBudget < supplier.min_order_qty) {
-                continue;
+                continue; // Skip if we can't even afford MOQ
             }
-            
             qtyToTake = Math.min(qtyToTake, maxQtyForBudget);
         }
 
@@ -102,14 +91,7 @@ function optimizeAllocation(requirement, candidates) {
             phone: supplier.phone
         });
 
-        remainingQty -= qtyToTake;
         remainingBudget -= actualCost;
-
-        // Batasi alokasi ke 3 supplier maksimal untuk menghindari logistik terlalu kompleks
-        // Kecuali quantity belum terpenuhi.
-        if (allocations.length >= 3 && remainingQty <= 0) {
-            break;
-        }
     }
 
     const totalAllocatedQty = allocations.reduce((sum, a) => sum + a.qty, 0);
