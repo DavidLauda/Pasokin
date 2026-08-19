@@ -1309,10 +1309,11 @@
     "phone": "628777777777",
     "message_received": "Baik pak, stok ada dan harga Rp 62.000 cocok. Bisa kita kirim besok.",
     "received_at": "2026-08-19T14:59:46.928Z",
-    "classification": "needs_manual_review",
+    "classification": "confirmed",
     "ai_summary": "Terjadi error klasifikasi AI. Butuh review manual.",
     "ai_extracted": null,
-    "human_override": false,
-    "resolved": false
+    "human_override": true,
+    "resolved": false,
+    "override_note": "Dikonfirmasi manual oleh admin"
   }
 ]

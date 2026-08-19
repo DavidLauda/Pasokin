@@ -269,9 +269,85 @@ PENTING: Output HARUS berupa JSON murni dengan format berikut:
     }
 }
 
+async function batchClassifySupplierReplies(requirementSnapshot, repliesData) {
+    console.log("[AI] Batch classifying supplier replies...");
+
+    try {
+        const prompt = `Anda adalah asisten AI (Pasokin). Anda akan diberikan histori penawaran harga (RFQ) dan balasan terbaru dari BEBERAPA supplier di WhatsApp.
+Tugas Anda mengklasifikasikan SETIAP balasan tersebut dan mengekstrak informasinya.
+
+Konteks RFQ (Yang diminta pembeli):
+- Material: ${requirementSnapshot.materialName}
+- Target Pengiriman: Maksimal ${requirementSnapshot.targetDeliveryDate}
+
+Data Balasan Supplier:
+${JSON.stringify(repliesData.map(r => ({
+    reply_id: r.reply_id,
+    supplier_name: r.supplier_name,
+    qty_requested: r.qty_requested + ' ' + requirementSnapshot.unit,
+    target_price: 'Rp ' + r.target_price,
+    max_lead_time_days: r.lead_time_days,
+    reply_text: r.reply_text
+})), null, 2)}
+
+Analisis balasan tiap supplier dan tentukan apakah mereka:
+1. "confirmed": menyetujui SELURUH syarat (kuantitas terpenuhi, harga sama atau lebih murah, pengiriman sanggup tepat waktu). Tidak ada modifikasi syarat dari pihak mereka.
+2. "needs_manual_review": Mereka menawarkan harga lebih tinggi, kuantitas lebih rendah, butuh waktu pengiriman lebih lama, bertanya, menolak, atau tidak ada kejelasan.
+
+PENTING: Output HARUS berupa JSON ARRAY dengan format:
+[
+  {
+    "reply_id": "id-dari-data-input",
+    "classification": "confirmed" | "needs_manual_review",
+    "ai_summary": "1 kalimat ringkasan bahasa indonesia alasan klasifikasi ini",
+    "ai_extracted": {
+      "qty": number (jika mereka menyebut kuantitas yg disanggupi, else null),
+      "price": number (jika menyebut harga yg disanggupi, else null),
+      "lead_time_days": number (jika menyebut estimasi hari pengiriman, else null)
+    }
+  }
+]`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3.6-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json"
+            }
+        });
+
+        let responseText = response.text;
+        if (responseText.startsWith("\`\`\`json")) {
+            responseText = responseText.replace(/\`\`\`json\n?/, "").replace(/\`\`\`\n?$/, "");
+        }
+        
+        const parsed = JSON.parse(responseText);
+        
+        // Validation
+        parsed.forEach(p => {
+            if (p.classification !== "confirmed" && p.classification !== "needs_manual_review") {
+                p.classification = "needs_manual_review";
+            }
+        });
+        
+        return parsed;
+
+    } catch (e) {
+        console.error("Gemini batch classification failed", e);
+        // Fallback
+        return repliesData.map(r => ({
+            reply_id: r.reply_id,
+            classification: "needs_manual_review",
+            ai_summary: "Terjadi error klasifikasi AI. Butuh review manual.",
+            ai_extracted: null
+        }));
+    }
+}
+
 module.exports = {
     parseRequirementIntent,
     generateAllocationReasoning,
     generateWAMessagesForAllocations,
-    classifySupplierReply
+    classifySupplierReply,
+    batchClassifySupplierReplies
 };

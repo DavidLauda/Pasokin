@@ -84,6 +84,21 @@ export default function OptimizationDashboard({ data, demoMode }) {
         }
     };
 
+    const handleSimulateAll = async () => {
+        if (!data.dispatch_id) {
+            toast.error("Tidak ada dispatch ID.");
+            return;
+        }
+        const toastId = toast.loading("Mensimulasikan dan menganalisis semua balasan sekaligus...");
+        try {
+            await client.post('/wa-replies/simulate-all', { dispatch_id: data.dispatch_id });
+            toast.success("Simulasi batch selesai!", { id: toastId });
+            fetchReplies();
+        } catch (err) {
+            toast.error("Gagal simulasi batch", { id: toastId });
+        }
+    };
+
     const handleManualConfirm = async (reply) => {
         try {
             await client.post(`/wa-replies/${reply.reply_id}/override`, { classification: 'confirmed', note: "Dikonfirmasi manual oleh admin" });
@@ -293,8 +308,9 @@ export default function OptimizationDashboard({ data, demoMode }) {
                     <div className="px-8 py-4 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between">
                         <span className="text-xs font-bold text-amber-600">[DEV] Simulator Balasan</span>
                         <div className="flex gap-2">
-                            <button onClick={() => handleSimulate('confirmed')} className="px-4 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-all">Simulasi: Sesuai</button>
-                            <button onClick={() => handleSimulate('negotiate')} className="px-4 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all">Simulasi: Nego</button>
+                            <button onClick={handleSimulateAll} className="px-4 py-1.5 text-xs font-bold bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-all shadow-sm">Simulasi Semua (Batched)</button>
+                            <button onClick={() => handleSimulate('confirmed')} className="px-4 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-all">Sesuai</button>
+                            <button onClick={() => handleSimulate('negotiate')} className="px-4 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all">Nego</button>
                         </div>
                     </div>
                 )}
