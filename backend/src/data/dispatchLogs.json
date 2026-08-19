@@ -1237,5 +1237,425 @@
     },
     "dispatched_at": "2026-08-19T13:53:17.029Z",
     "status": "sent"
+  },
+  {
+    "dispatch_id": "bd44f907-ee3d-4b6b-ac78-af2e2f2b334d",
+    "supplier_id": "sup-201",
+    "name": "CV Baja Perkasa",
+    "phone": "628666666666",
+    "message_sent": "Halo CV Baja Perkasa,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T13:59:39.562Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 65000,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T13:59:42.305Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "bd44f907-ee3d-4b6b-ac78-af2e2f2b334d",
+    "supplier_id": "sup-202",
+    "name": "PT Besi Bangun Nusantara",
+    "phone": "628777777777",
+    "message_sent": "Halo PT Besi Bangun Nusantara,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T13:59:39.562Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 62000,
+      "lead_time_days": 5
+    },
+    "dispatched_at": "2026-08-19T13:59:42.307Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "bd44f907-ee3d-4b6b-ac78-af2e2f2b334d",
+    "supplier_id": "sup-203",
+    "name": "Toko Besi Maju",
+    "phone": "628888888888",
+    "message_sent": "Halo Toko Besi Maju,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T13:59:39.562Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 67000,
+      "lead_time_days": 1
+    },
+    "dispatched_at": "2026-08-19T13:59:42.308Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "bd44f907-ee3d-4b6b-ac78-af2e2f2b334d",
+    "supplier_id": "sup-204",
+    "name": "UD Baja Ringan Indah",
+    "phone": "628999999999",
+    "message_sent": "Halo UD Baja Ringan Indah,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T13:59:39.562Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 64000,
+      "lead_time_days": 2
+    },
+    "dispatched_at": "2026-08-19T13:59:42.309Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "bd44f907-ee3d-4b6b-ac78-af2e2f2b334d",
+    "supplier_id": "sup-205",
+    "name": "CV Inti Baja",
+    "phone": "628101010101",
+    "message_sent": "Halo CV Inti Baja,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T13:59:39.562Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 63500,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T13:59:42.310Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "f7143c7d-38d8-4c06-9f35-0e4083373475",
+    "supplier_id": "sup-201",
+    "name": "CV Baja Perkasa",
+    "phone": "628666666666",
+    "message_sent": "Halo CV Baja Perkasa,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:03.763Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 65000,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T14:09:08.176Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "f7143c7d-38d8-4c06-9f35-0e4083373475",
+    "supplier_id": "sup-202",
+    "name": "PT Besi Bangun Nusantara",
+    "phone": "628777777777",
+    "message_sent": "Halo PT Besi Bangun Nusantara,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:03.763Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 62000,
+      "lead_time_days": 5
+    },
+    "dispatched_at": "2026-08-19T14:09:08.178Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "f7143c7d-38d8-4c06-9f35-0e4083373475",
+    "supplier_id": "sup-203",
+    "name": "Toko Besi Maju",
+    "phone": "628888888888",
+    "message_sent": "Halo Toko Besi Maju,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:03.763Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 67000,
+      "lead_time_days": 1
+    },
+    "dispatched_at": "2026-08-19T14:09:08.179Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "f7143c7d-38d8-4c06-9f35-0e4083373475",
+    "supplier_id": "sup-204",
+    "name": "UD Baja Ringan Indah",
+    "phone": "628999999999",
+    "message_sent": "Halo UD Baja Ringan Indah,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:03.763Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 64000,
+      "lead_time_days": 2
+    },
+    "dispatched_at": "2026-08-19T14:09:08.180Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "f7143c7d-38d8-4c06-9f35-0e4083373475",
+    "supplier_id": "sup-205",
+    "name": "CV Inti Baja",
+    "phone": "628101010101",
+    "message_sent": "Halo CV Inti Baja,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:03.763Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 63500,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T14:09:08.181Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "02fb1b5d-12bc-4d69-8293-098b779c1e6b",
+    "supplier_id": "sup-201",
+    "name": "CV Baja Perkasa",
+    "phone": "628666666666",
+    "message_sent": "Halo CV Baja Perkasa,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:48.894Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 65000,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T14:09:52.172Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "02fb1b5d-12bc-4d69-8293-098b779c1e6b",
+    "supplier_id": "sup-202",
+    "name": "PT Besi Bangun Nusantara",
+    "phone": "628777777777",
+    "message_sent": "Halo PT Besi Bangun Nusantara,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:48.894Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 62000,
+      "lead_time_days": 5
+    },
+    "dispatched_at": "2026-08-19T14:09:52.173Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "02fb1b5d-12bc-4d69-8293-098b779c1e6b",
+    "supplier_id": "sup-203",
+    "name": "Toko Besi Maju",
+    "phone": "628888888888",
+    "message_sent": "Halo Toko Besi Maju,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:48.894Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 67000,
+      "lead_time_days": 1
+    },
+    "dispatched_at": "2026-08-19T14:09:52.175Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "02fb1b5d-12bc-4d69-8293-098b779c1e6b",
+    "supplier_id": "sup-204",
+    "name": "UD Baja Ringan Indah",
+    "phone": "628999999999",
+    "message_sent": "Halo UD Baja Ringan Indah,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:48.894Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 64000,
+      "lead_time_days": 2
+    },
+    "dispatched_at": "2026-08-19T14:09:52.176Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "02fb1b5d-12bc-4d69-8293-098b779c1e6b",
+    "supplier_id": "sup-205",
+    "name": "CV Inti Baja",
+    "phone": "628101010101",
+    "message_sent": "Halo CV Inti Baja,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja Ringan\n- Kuantitas: 1000 kg\n- Target Harga (indikatif): RpNaN/kg\n- Target Pengiriman: 26 Agustus 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Baja Ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-08-26T14:09:48.894Z"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 63500,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T14:09:52.177Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "c0448fb5-0caf-44c7-95c6-5fbac217db23",
+    "supplier_id": "sup-201",
+    "name": "CV Baja Perkasa",
+    "phone": "628666666666",
+    "message_sent": "Selamat siang Tim CV Baja Perkasa,\n\nSaya perwakilan dari PT Pasokin Demo ingin mengajukan permintaan penawaran harga (RFQ) untuk kebutuhan material berikut:\n\n- Material: Baja ringan\n- Jumlah: 1.000 unit\n- Target Pengiriman: 19 Oktober 2026\n\nMohon informasi terkait ketersediaan stok, penawaran harga terbaik, serta kesanggupan pengiriman sesuai target waktu tersebut.\n\nTerima kasih atas perhatian dan kerjasamanya.",
+    "requirement_snapshot": {
+      "materialName": "baja ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-10-19"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 65000,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T14:57:05.839Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "c0448fb5-0caf-44c7-95c6-5fbac217db23",
+    "supplier_id": "sup-202",
+    "name": "PT Besi Bangun Nusantara",
+    "phone": "628777777777",
+    "message_sent": "Selamat siang Tim PT Besi Bangun Nusantara,\n\nSaya dari PT Pasokin Demo bermaksud mengajukan penawaran harga (RFQ) untuk pengadaan material berikut:\n\n- Material: Baja ringan\n- Jumlah: 1.000 unit\n- Target Pengiriman: 19 Oktober 2026\n\nApakah stok tersedia? Mohon kirimkan informasi harga unit dan konfirmasi kesanggupan pengiriman.\n\nTerima kasih atas bantuan dan kerjasamanya.",
+    "requirement_snapshot": {
+      "materialName": "baja ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-10-19"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 62000,
+      "lead_time_days": 5
+    },
+    "dispatched_at": "2026-08-19T14:57:05.841Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "c0448fb5-0caf-44c7-95c6-5fbac217db23",
+    "supplier_id": "sup-203",
+    "name": "Toko Besi Maju",
+    "phone": "628888888888",
+    "message_sent": "Selamat siang Tim Toko Besi Maju,\n\nSaya dari PT Pasokin Demo ingin mengonfirmasi ketersediaan stok dan harga untuk pengadaan material berikut:\n\n- Material: Baja ringan\n- Jumlah: 1.000 unit\n- Target Pengiriman: 19 Oktober 2026\n\nMohon infokan penawaran harga terbaik serta kesanggupan pengiriman ke lokasi kami sesuai jadwal.\n\nTerima kasih banyak atas respon Bapak/Ibu.",
+    "requirement_snapshot": {
+      "materialName": "baja ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-10-19"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 67000,
+      "lead_time_days": 1
+    },
+    "dispatched_at": "2026-08-19T14:57:05.842Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "c0448fb5-0caf-44c7-95c6-5fbac217db23",
+    "supplier_id": "sup-204",
+    "name": "UD Baja Ringan Indah",
+    "phone": "628999999999",
+    "message_sent": "Selamat siang Tim UD Baja Ringan Indah,\n\nSaya perwakilan dari PT Pasokin Demo hendak mengajukan permintaan penawaran harga (RFQ) untuk produk berikut:\n\n- Material: Baja ringan\n- Jumlah: 1.000 unit\n- Target Pengiriman: 19 Oktober 2026\n\nMohon informasi ketersediaan stok, penawaran harga, dan kepastian jadwal pengiriman.\n\nTerima kasih atas perhatian dan waktunya.",
+    "requirement_snapshot": {
+      "materialName": "baja ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-10-19"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 64000,
+      "lead_time_days": 2
+    },
+    "dispatched_at": "2026-08-19T14:57:05.843Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "c0448fb5-0caf-44c7-95c6-5fbac217db23",
+    "supplier_id": "sup-205",
+    "name": "CV Inti Baja",
+    "phone": "628101010101",
+    "message_sent": "Selamat siang Tim CV Inti Baja,\n\nSaya dari PT Pasokin Demo ingin mengajukan RFQ untuk kebutuhan pengadaan material kami:\n\n- Material: Baja ringan\n- Jumlah: 1.000 unit\n- Target Pengiriman: 19 Oktober 2026\n\nMohon informasikan ketersediaan stok, harga per unit, serta kesanggupan pengiriman pada tanggal tersebut.\n\nTerima kasih atas perhatian dan kerjasamanya.",
+    "requirement_snapshot": {
+      "materialName": "baja ringan",
+      "quantity": 1000,
+      "unit": "kg",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-10-19"
+    },
+    "allocation_snapshot": {
+      "qty": 1000,
+      "price": 63500,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-19T14:57:05.844Z",
+    "status": "sent"
   }
 ]

@@ -115,6 +115,8 @@ router.post('/simulate', async (req, res) => {
     const { phone, style } = req.body;
     if (!phone || !style) return res.status(400).json({ error: "phone and style required" });
 
+    console.log("Simulate called with phone:", phone, "style:", style);
+
     // Cari log dispatch terbaru untuk nomor ini
     const logs = dispatchLog.getAllLogs().filter(l => {
         let lp = l.phone.replace(/\D/g, '');
@@ -136,6 +138,8 @@ router.post('/simulate', async (req, res) => {
     } else {
         simulatedMessage = "Maaf pak, barang kosong.";
     }
+    
+    console.log("Simulated message:", simulatedMessage);
 
     const reply_id = crypto.randomUUID();
     const replyEntry = {
@@ -154,11 +158,15 @@ router.post('/simulate', async (req, res) => {
     };
 
     repliesStore.addReply(replyEntry);
+    console.log("Reply added to store");
 
     if (latestDispatch) {
+        console.log("Latest dispatch found, calling processReplyClassification");
         await whatsappService.processReplyClassification(replyEntry, latestDispatch);
+        console.log("Classification finished");
     }
 
+    console.log("Returning JSON");
     res.json(repliesStore.getReply(reply_id));
 });
 
