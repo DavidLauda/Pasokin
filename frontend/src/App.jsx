@@ -51,7 +51,7 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900 selection:bg-amber-200">
-      <Toaster position="top-right" toastOptions={{ style: { borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' } }} />
+      <Toaster position="bottom-right" toastOptions={{ style: { borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' } }} />
 
       {/* Abstract Glow Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-60 z-0">
@@ -114,7 +114,7 @@ function App() {
                   onClick={toggleDemoMode}
                   className="flex bg-slate-100 rounded-full p-1 border border-slate-200 relative w-[180px] shadow-inner"
                 >
-                  <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 shadow-sm ${health.demoMode ? 'translate-x-0 bg-amber-400' : 'translate-x-[calc(100%+4px)] bg-emerald-400'}`}></div>
+                  <div className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 shadow-sm ${health.demoMode ? 'translate-x-0 bg-amber-400' : 'translate-x-[100%] bg-emerald-400'}`}></div>
                   <div className={`relative z-10 flex-1 text-center py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${health.demoMode ? 'text-white' : 'text-slate-500'}`}>
                       <Cpu className="h-3 w-3" /> Simulasi
                   </div>
