@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Package, Wallet, Calendar, Scale, Loader2 } from 'lucide-react';
+import { Package, Wallet, Calendar, Scale, Loader2, ChevronDown, ChevronUp, Sparkles, X, Check, Edit3, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 
-export default function RequirementForm({ onResult, onLoadingStart, onError }) {
+export default function RequirementForm({ onConfirm, onLoadingStart, onError }) {
+    // Natural language input
+    const [rawInput, setRawInput] = useState('');
+    
+    // Manual form fields
+    const [showManualForm, setShowManualForm] = useState(false);
     const [materialName, setMaterialName] = useState('');
     const [quantity, setQuantity] = useState('');
     const [unit, setUnit] = useState('kg');
@@ -11,15 +16,18 @@ export default function RequirementForm({ onResult, onLoadingStart, onError }) {
     const [budgetNum, setBudgetNum] = useState(0);
     const [targetDate, setTargetDate] = useState('');
     
-    // Priorities
-    const [cost, setCost] = useState(40);
-    const [speed, setSpeed] = useState(40);
-    const [risk, setRisk] = useState(20);
-
+    // Priority buttons
+    const [priority, setPriority] = useState('balanced'); // 'cost' | 'speed' | 'balanced'
+    
+    // State
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState([]);
+    
+    // Summary popup
+    const [showSummary, setShowSummary] = useState(false);
+    const [parsedRequirement, setParsedRequirement] = useState(null);
+    const [candidates, setCandidates] = useState([]);
 
-    // Fetch categories for datalist
     useEffect(() => {
         client.get('/suppliers')
             .then(res => {
@@ -29,295 +37,327 @@ export default function RequirementForm({ onResult, onLoadingStart, onError }) {
             .catch(err => console.error("Gagal load categories", err));
     }, []);
 
-    // Format budget as IDR string
+    const getPriorityValues = () => {
+        switch (priority) {
+            case 'cost': return { cost: 60, speed: 20, risk: 20 };
+            case 'speed': return { cost: 20, speed: 60, risk: 20 };
+            default: return { cost: 40, speed: 40, risk: 20 };
+        }
+    };
+
     const handleBudgetChange = (e) => {
         const rawValue = e.target.value.replace(/\D/g, '');
-        if (!rawValue) {
-            setBudgetStr('');
-            setBudgetNum(0);
-            return;
-        }
+        if (!rawValue) { setBudgetStr(''); setBudgetNum(0); return; }
         const num = parseInt(rawValue, 10);
         setBudgetNum(num);
         setBudgetStr(new Intl.NumberFormat('id-ID').format(num));
     };
 
-    // Slider logic
-    const handlePriorityChange = (type, value) => {
-        let val = parseInt(value, 10);
-        if (isNaN(val)) return;
+    const getTodayStr = () => new Date().toISOString().split('T')[0];
 
-        let rem = 100 - val;
-        if (type === 'cost') {
-            setCost(val);
-            let totalOther = speed + risk;
-            if (totalOther === 0) { setSpeed(Math.floor(rem/2)); setRisk(Math.ceil(rem/2)); }
-            else {
-                setSpeed(Math.round((speed / totalOther) * rem));
-                setRisk(100 - val - Math.round((speed / totalOther) * rem));
-            }
-        } else if (type === 'speed') {
-            setSpeed(val);
-            let totalOther = cost + risk;
-            if (totalOther === 0) { setCost(Math.floor(rem/2)); setRisk(Math.ceil(rem/2)); }
-            else {
-                setCost(Math.round((cost / totalOther) * rem));
-                setRisk(100 - val - Math.round((cost / totalOther) * rem));
-            }
-        } else {
-            setRisk(val);
-            let totalOther = cost + speed;
-            if (totalOther === 0) { setCost(Math.floor(rem/2)); setSpeed(Math.ceil(rem/2)); }
-            else {
-                setCost(Math.round((cost / totalOther) * rem));
-                setSpeed(100 - val - Math.round((cost / totalOther) * rem));
-            }
-        }
-    };
-
-    const getTodayStr = () => {
-        return new Date().toISOString().split('T')[0];
-    };
+    const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!materialName || !quantity || budgetNum <= 0 || !targetDate) {
-            toast.error("Mohon lengkapi semua field dengan benar.");
-            return;
+        let payload;
+        
+        if (showManualForm) {
+            // Manual form validation
+            if (!materialName || !quantity || budgetNum <= 0 || !targetDate) {
+                toast.error("Mohon lengkapi semua field dengan benar.");
+                return;
+            }
+            payload = {
+                materialName,
+                quantity: parseFloat(quantity),
+                unit,
+                maxBudget: budgetNum,
+                targetDeliveryDate: new Date(targetDate).toISOString(),
+                priority: getPriorityValues()
+            };
+        } else {
+            // Natural language
+            if (!rawInput.trim()) {
+                toast.error("Mohon tuliskan kebutuhan Anda.");
+                return;
+            }
+            payload = {
+                rawInput: rawInput.trim(),
+                priority: getPriorityValues()
+            };
         }
-
-        const qtyNum = parseFloat(quantity);
-        if (qtyNum <= 0) {
-            toast.error("Kuantitas harus lebih dari 0.");
-            return;
-        }
-
-        const payload = {
-            materialName,
-            quantity: qtyNum,
-            unit,
-            maxBudget: budgetNum,
-            targetDeliveryDate: new Date(targetDate).toISOString(),
-            priority: { cost, speed, risk }
-        };
 
         setIsLoading(true);
-        if (onLoadingStart) onLoadingStart();
-        const toastId = toast.loading("Mencari supplier potensial...");
+        const toastId = toast.loading("AI sedang menganalisis kebutuhan Anda...");
 
         try {
-            // 1. Source
             const sourceRes = await client.post('/source', payload);
-            const candidates = sourceRes.data.candidates;
+            const { requirement: parsed, candidates: cands } = sourceRes.data;
             
-            if (!candidates || candidates.length === 0) {
-                toast.error("Tidak ada supplier yang memenuhi kriteria (terutama batas waktu pengiriman).", { id: toastId });
+            if (!cands || cands.length === 0) {
+                toast.error("Tidak ada supplier yang memenuhi kriteria.", { id: toastId });
                 setIsLoading(false);
-                if (onError) onError();
                 return;
             }
 
-            toast.loading("Mengoptimasi alokasi ke " + candidates.length + " supplier...", { id: toastId });
-            
-            // 2. Optimize
-            const optimizeRes = await client.post('/optimize', {
-                requirement: payload,
-                candidates: candidates
-            });
-
-            toast.success("Optimasi selesai!", { id: toastId });
-            
-            if (onResult) {
-                onResult({
-                    requirement: payload,
-                    candidates: candidates,
-                    optimization: optimizeRes.data
-                });
-            }
-
+            toast.dismiss(toastId);
+            setParsedRequirement({ ...parsed, priority: payload.priority || parsed.priority });
+            setCandidates(cands);
+            setShowSummary(true);
         } catch (err) {
             console.error(err);
-            toast.error(err?.response?.data?.error || "Gagal memproses pengadaan.", { id: toastId });
-            if (onError) onError();
+            toast.error(err?.response?.data?.error || "Gagal memproses.", { id: toastId });
         } finally {
             setIsLoading(false);
         }
     };
 
-    const applyPreset = (mat, q, b) => {
-        setMaterialName(mat);
-        setQuantity(q);
-        setBudgetStr(new Intl.NumberFormat('id-ID').format(b));
-        setBudgetNum(b);
+    const handleConfirm = async () => {
+        setShowSummary(false);
+        if (onLoadingStart) onLoadingStart();
+        
+        const toastId = toast.loading("Mengoptimasi alokasi ke " + candidates.length + " supplier...");
+
+        try {
+            // 1. Optimize
+            const optimizeRes = await client.post('/optimize', {
+                requirement: parsedRequirement,
+                candidates: candidates
+            });
+
+            toast.loading("Mengirim RFQ ke supplier...", { id: toastId });
+
+            // 2. Dispatch WA
+            const allocations = optimizeRes.data.recommended_allocations;
+            await client.post('/dispatch-wa', {
+                allocations,
+                requirement: parsedRequirement,
+                companyName: "PT Pasokin Demo"
+            });
+
+            toast.success("RFQ berhasil dikirim ke " + allocations.length + " supplier!", { id: toastId });
+
+            if (onConfirm) {
+                onConfirm({
+                    requirement: parsedRequirement,
+                    candidates: candidates,
+                    optimization: optimizeRes.data
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error(err?.response?.data?.error || "Gagal memproses optimasi.", { id: toastId });
+            if (onError) onError();
+        }
     };
 
     return (
-        <div className="w-full bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-            <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <div>
-                    <h2 className="text-lg font-extrabold text-slate-800 tracking-tight flex items-center gap-2"><Package className="h-5 w-5 text-amber-500"/> Detail Permintaan</h2>
-                    <p className="text-slate-500 text-xs mt-0.5 font-medium">Isi form atau gunakan preset cepat</p>
-                </div>
+        <div className="w-full max-w-2xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-8">
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Apa yang kamu butuhkan?
+                </h2>
+                <p className="text-slate-500 mt-2 font-medium">
+                    Tulis dalam bahasa natural, AI kami yang urus sisanya.
+                </p>
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                
-                {/* Presets */}
-                <div className="flex flex-wrap gap-2 mb-2">
-                    <button type="button" onClick={() => applyPreset('Baja Ringan', 10000, 50000000)} className="px-3 py-1.5 text-xs font-bold rounded-full bg-slate-50 text-slate-600 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 shadow-sm transition-colors">
-                        + Baja Ringan 10k
-                    </button>
-                    <button type="button" onClick={() => applyPreset('Semen Portland', 500, 25000000)} className="px-3 py-1.5 text-xs font-bold rounded-full bg-slate-50 text-slate-600 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 shadow-sm transition-colors">
-                        + Semen 500 Sak
-                    </button>
-                    <button type="button" onClick={() => applyPreset('Besi Beton', 5000, 80000000)} className="px-3 py-1.5 text-xs font-bold rounded-full bg-slate-50 text-slate-600 hover:bg-amber-50 hover:text-amber-600 border border-slate-200 shadow-sm transition-colors">
-                        + Besi Beton 5k
-                    </button>
-                </div>
-                
-                {/* Material Name */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Material</label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Package className="h-5 w-5 text-amber-500" />
-                        </div>
-                        <input
-                            type="text"
-                            list="category-suggestions"
-                            value={materialName}
-                            onChange={e => setMaterialName(e.target.value)}
-                            className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
-                            placeholder="Contoh: Baja Ringan"
-                            required
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Natural Language Input */}
+                {!showManualForm && (
+                    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+                        <textarea
+                            value={rawInput}
+                            onChange={(e) => setRawInput(e.target.value)}
+                            placeholder="Butuh baja ringan 10.000 kg, budget 300 juta, dikirim minggu depan"
+                            rows={4}
+                            className="w-full p-6 text-lg font-medium text-slate-900 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-0 border-0"
                         />
-                        <datalist id="category-suggestions">
-                            {categories.map(c => <option key={c} value={c} />)}
-                        </datalist>
                     </div>
+                )}
+
+                {/* Manual Form Toggle */}
+                <div className="flex justify-center">
+                    <button
+                        type="button"
+                        onClick={() => setShowManualForm(!showManualForm)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-amber-600 transition-colors"
+                    >
+                        {showManualForm ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {showManualForm ? 'Sembunyikan Form Manual' : 'Isi Manual'}
+                    </button>
                 </div>
 
-                {/* Qty & Unit */}
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Kuantitas</label>
-                        <input
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            value={quantity}
-                            onChange={e => setQuantity(e.target.value)}
-                            className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
-                            placeholder="1000"
-                            required
-                        />
+                {/* Manual Form */}
+                {showManualForm && (
+                    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6 space-y-5">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">Nama Material</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Package className="h-5 w-5 text-amber-500" />
+                                </div>
+                                <input
+                                    type="text" list="category-suggestions"
+                                    value={materialName} onChange={e => setMaterialName(e.target.value)}
+                                    className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
+                                    placeholder="Contoh: Baja Ringan" required={showManualForm}
+                                />
+                                <datalist id="category-suggestions">
+                                    {categories.map(c => <option key={c} value={c} />)}
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="col-span-2">
+                                <label className="block text-sm font-bold text-slate-600 mb-1.5">Kuantitas</label>
+                                <input type="number" min="0.1" step="0.1" value={quantity} onChange={e => setQuantity(e.target.value)}
+                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
+                                    placeholder="1000" required={showManualForm}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-600 mb-1.5">Satuan</label>
+                                <select value={unit} onChange={e => setUnit(e.target.value)}
+                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50/50 text-slate-900 font-medium transition-all appearance-none"
+                                >
+                                    <option value="kg">kg</option><option value="ton">ton</option><option value="batang">batang</option><option value="meter">meter</option><option value="pcs">pcs</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">Batas Anggaran</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Wallet className="h-5 w-5 text-amber-500" /></div>
+                                <div className="absolute inset-y-0 left-10 flex items-center pointer-events-none"><span className="text-slate-500 font-bold">Rp</span></div>
+                                <input type="text" value={budgetStr} onChange={handleBudgetChange}
+                                    className="pl-[4.5rem] w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 font-bold bg-slate-50/50 transition-all"
+                                    placeholder="30.000.000" required={showManualForm}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-600 mb-1.5">Target Pengiriman</label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="h-5 w-5 text-amber-500" /></div>
+                                <input type="date" min={getTodayStr()} value={targetDate} onChange={e => setTargetDate(e.target.value)}
+                                    className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
+                                    required={showManualForm}
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <div className="col-span-1">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Satuan</label>
-                        <select 
-                            value={unit}
-                            onChange={e => setUnit(e.target.value)}
-                            className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50/50 text-slate-900 font-medium transition-all appearance-none"
+                )}
+
+                {/* Priority Buttons */}
+                <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6">
+                    <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4">Prioritas</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                        <button type="button" onClick={() => setPriority('cost')}
+                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'cost' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-md shadow-amber-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
                         >
-                            <option value="kg">kg</option>
-                            <option value="ton">ton</option>
-                            <option value="batang">batang</option>
-                            <option value="meter">meter</option>
-                            <option value="pcs">pcs</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Budget */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Batas Anggaran (Maksimal)</label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Wallet className="h-5 w-5 text-amber-500" />
-                        </div>
-                        <div className="absolute inset-y-0 left-10 flex items-center pointer-events-none">
-                            <span className="text-slate-500 font-bold">Rp</span>
-                        </div>
-                        <input
-                            type="text"
-                            value={budgetStr}
-                            onChange={handleBudgetChange}
-                            className="pl-[4.5rem] w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 font-bold bg-slate-50/50 transition-all"
-                            placeholder="30.000.000"
-                            required
-                        />
-                    </div>
-                </div>
-
-                {/* Delivery Date */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Target Tanggal Pengiriman</label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Calendar className="h-5 w-5 text-amber-500" />
-                        </div>
-                        <input
-                            type="date"
-                            min={getTodayStr()}
-                            value={targetDate}
-                            onChange={e => setTargetDate(e.target.value)}
-                            className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
-                            required
-                        />
-                    </div>
-                </div>
-
-                {/* Priorities */}
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                    <div className="flex items-center gap-2 mb-5">
-                        <Scale className="h-5 w-5 text-amber-500" />
-                        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Prioritas AI (Total: 100%)</h3>
-                    </div>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                                <span>Menekan Biaya</span>
-                                <span>{cost}%</span>
-                            </div>
-                            <input type="range" min="0" max="100" value={cost} onChange={(e) => handlePriorityChange('cost', e.target.value)} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"/>
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                                <span>Kecepatan Pengiriman</span>
-                                <span>{speed}%</span>
-                            </div>
-                            <input type="range" min="0" max="100" value={speed} onChange={(e) => handlePriorityChange('speed', e.target.value)} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"/>
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
-                                <span>Keandalan (Minimal Risiko)</span>
-                                <span>{risk}%</span>
-                            </div>
-                            <input type="range" min="0" max="100" value={risk} onChange={(e) => handlePriorityChange('risk', e.target.value)} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"/>
-                        </div>
+                            Prioritaskan Biaya
+                        </button>
+                        <button type="button" onClick={() => setPriority('speed')}
+                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'speed' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-md shadow-amber-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                        >
+                            Prioritaskan Kecepatan
+                        </button>
+                        <button type="button" onClick={() => setPriority('balanced')}
+                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'balanced' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-md shadow-amber-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                        >
+                            Seimbang
+                        </button>
                     </div>
                 </div>
 
                 {/* Submit */}
-                <div className="pt-2">
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-2xl shadow-xl shadow-amber-500/20 text-base font-extrabold text-white bg-amber-400 hover:bg-amber-500 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200"
-                    >
-                        {isLoading ? (
-                            <>
-                                <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" />
-                                Menjalankan AI...
-                            </>
-                        ) : (
-                            "Kirim Permintaan & Sortir AI"
-                        )}
-                    </button>
-                </div>
+                <button type="submit" disabled={isLoading}
+                    className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-2xl shadow-xl shadow-amber-500/20 text-base font-extrabold text-white bg-amber-400 hover:bg-amber-500 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200"
+                >
+                    {isLoading ? (
+                        <><Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> AI sedang menganalisis...</>
+                    ) : (
+                        "Cari & Optimalkan Pemasok"
+                    )}
+                </button>
             </form>
+
+            {/* AI Summary Popup */}
+            {showSummary && parsedRequirement && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 text-amber-500" />
+                                Ringkasan AI
+                            </h3>
+                            <button type="button" onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-200 transition-colors">
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm text-slate-500 font-medium">AI telah menganalisis permintaan Anda. Berikut ringkasannya:</p>
+                            
+                            <div className="bg-slate-50 rounded-2xl p-5 space-y-3 border border-slate-100">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Material</span>
+                                    <span className="text-sm font-extrabold text-slate-900">{parsedRequirement.materialName}</span>
+                                </div>
+                                <div className="border-t border-slate-200"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Kuantitas</span>
+                                    <span className="text-sm font-extrabold text-slate-900">{new Intl.NumberFormat('id-ID').format(parsedRequirement.quantity)} {parsedRequirement.unit}</span>
+                                </div>
+                                <div className="border-t border-slate-200"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Budget Maks</span>
+                                    <span className="text-sm font-extrabold text-slate-900">{formatIDR(parsedRequirement.maxBudget)}</span>
+                                </div>
+                                <div className="border-t border-slate-200"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Target Pengiriman</span>
+                                    <span className="text-sm font-extrabold text-slate-900">{new Date(parsedRequirement.targetDeliveryDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                </div>
+                                <div className="border-t border-slate-200"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Prioritas</span>
+                                    <span className="text-sm font-extrabold text-slate-900">
+                                        {priority === 'cost' ? 'Biaya' : priority === 'speed' ? 'Kecepatan' : 'Seimbang'}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                                <p className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                                    <MessageSquare className="h-4 w-4" />
+                                    Ditemukan {candidates.length} supplier yang memenuhi kriteria
+                                </p>
+                                <p className="text-xs text-amber-600 mt-1">Jika dikonfirmasi, AI akan langsung mengirim RFQ ke semua supplier tersebut via WhatsApp.</p>
+                            </div>
+                        </div>
+                        
+                        <div className="p-5 border-t border-slate-100 bg-white flex justify-end gap-3">
+                            <button type="button" onClick={() => setShowSummary(false)}
+                                className="flex items-center gap-2 px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                            >
+                                <Edit3 className="h-4 w-4" /> Revisi
+                            </button>
+                            <button type="button" onClick={handleConfirm}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-amber-400 hover:bg-amber-500 text-white font-extrabold rounded-xl shadow-lg shadow-amber-500/20 transition-all"
+                            >
+                                <Check className="h-4 w-4" /> Konfirmasi & Kirim
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -10,6 +10,10 @@ router.post('/', async (req, res) => {
       // Jika request berupa rawInput string (natural language), parse dengan Gemini AI
       if (req.body.rawInput) {
           requirement = await geminiService.parseRequirementIntent(req.body.rawInput);
+          // Merge priority dari request jika ada (user memilih lewat tombol)
+          if (req.body.priority) {
+              requirement.priority = req.body.priority;
+          }
       }
       
       const { materialName, quantity, targetDeliveryDate } = requirement;

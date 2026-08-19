@@ -132,15 +132,17 @@ export default function SupplierManagement() {
             </div>
 
             {/* Controls */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="relative w-full max-w-md">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Search className="h-5 w-5 text-slate-400" />
+                    </div>
                     <input 
                         type="text" 
                         placeholder="Cari berdasarkan nama, kategori, atau lokasi..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium text-slate-900"
+                        className="block w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium text-slate-900"
                     />
                 </div>
             </div>
@@ -236,71 +238,71 @@ export default function SupplierManagement() {
                                 {formData.id ? <Edit2 className="h-5 w-5 text-amber-500" /> : <Plus className="h-5 w-5 text-amber-500" />}
                                 {formData.id ? 'Edit Supplier' : 'Tambah Supplier Baru'}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-200 transition-colors">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-200 transition-colors">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
                         
-                        <div className="p-6 overflow-y-auto flex-1">
-                            <form id="supplierForm" onSubmit={handleSave} className="space-y-5">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="p-5 overflow-y-auto flex-1">
+                            <form id="supplierForm" onSubmit={handleSave} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Nama Perusahaan</label>
-                                        <input required type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Kategori Material</label>
-                                        <input required type="text" name="material_category" value={formData.material_category} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="text" name="material_category" value={formData.material_category} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="space-y-1 col-span-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Harga per Unit</label>
-                                        <input required type="number" name="price_per_unit" value={formData.price_per_unit} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="number" name="price_per_unit" value={formData.price_per_unit} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Satuan</label>
-                                        <input required type="text" name="unit" value={formData.unit} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="text" name="unit" value={formData.unit} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Lead Time (Hari)</label>
-                                        <input required type="number" name="lead_time_days" value={formData.lead_time_days} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="number" name="lead_time_days" value={formData.lead_time_days} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Min Order Qty</label>
-                                        <input required type="number" name="min_order_qty" value={formData.min_order_qty} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="number" name="min_order_qty" value={formData.min_order_qty} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Max Kapasitas</label>
-                                        <input required type="number" name="max_capacity_qty" value={formData.max_capacity_qty} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="number" name="max_capacity_qty" value={formData.max_capacity_qty} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-1 col-span-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Skor AI (0.0 - 1.0)</label>
-                                        <input required type="number" step="0.01" min="0" max="1" name="reliability_score" value={formData.reliability_score} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="number" step="0.01" min="0" max="1" name="reliability_score" value={formData.reliability_score} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                     <div className="space-y-1 col-span-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Lokasi</label>
-                                        <input required type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                        <input required type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                     </div>
                                 </div>
                                 
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-slate-500 uppercase">Nomor WhatsApp (Contoh: 6281...)</label>
-                                    <input required type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
+                                    <input required type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-medium text-slate-900" />
                                 </div>
                             </form>
                         </div>
                         
-                        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">Batal</button>
-                            <button form="supplierForm" type="submit" className="flex items-center gap-2 px-6 py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold rounded-xl shadow-lg shadow-amber-500/20 transition-all">
+                        <div className="p-4 border-t border-slate-100 bg-white flex justify-end gap-3">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">Batal</button>
+                            <button form="supplierForm" type="submit" className="flex items-center gap-2 px-6 py-2 bg-amber-400 hover:bg-amber-500 text-white font-extrabold rounded-xl shadow-lg shadow-amber-500/20 transition-all">
                                 <Save className="h-4 w-4" /> Simpan
                             </button>
                         </div>
