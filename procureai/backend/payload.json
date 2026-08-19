@@ -1,0 +1,50 @@
+{
+  "requirement": {
+    "materialName": "Baja Ringan",
+    "quantity": 60000,
+    "unit": "batang",
+    "maxBudget": 5000000000,
+    "priority": { "cost": 80, "speed": 10, "risk": 10 }
+  },
+  "candidates": [
+    {
+      "id": "sup-201",
+      "name": "CV Baja Perkasa",
+      "material_category": "Baja Ringan",
+      "price_per_unit": 65000,
+      "unit": "batang",
+      "min_order_qty": 100,
+      "max_capacity_qty": 20000,
+      "lead_time_days": 3,
+      "location": "Bekasi",
+      "reliability_score": 0.94,
+      "phone": "628666666666"
+    },
+    {
+      "id": "sup-202",
+      "name": "PT Besi Bangun Nusantara",
+      "material_category": "Baja Ringan",
+      "price_per_unit": 62000,
+      "unit": "batang",
+      "min_order_qty": 500,
+      "max_capacity_qty": 50000,
+      "lead_time_days": 5,
+      "location": "Tangerang",
+      "reliability_score": 0.85,
+      "phone": "628777777777"
+    },
+    {
+      "id": "sup-205",
+      "name": "CV Inti Baja",
+      "material_category": "Baja Ringan",
+      "price_per_unit": 63500,
+      "unit": "batang",
+      "min_order_qty": 300,
+      "max_capacity_qty": 25000,
+      "lead_time_days": 3,
+      "location": "Bogor",
+      "reliability_score": 0.89,
+      "phone": "628101010101"
+    }
+  ]
+}
