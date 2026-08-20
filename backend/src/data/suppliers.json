@@ -48,7 +48,7 @@
     "max_capacity_qty": 8000,
     "lead_time_days": 3,
     "location": "Semarang",
-    "reliability_score": 0.90,
+    "reliability_score": 0.9,
     "phone": "628444444444"
   },
   {
@@ -62,7 +62,7 @@
     "lead_time_days": 2,
     "location": "Jakarta",
     "reliability_score": 0.92,
-    "phone": "628555555555"
+    "phone": "6288888888"
   },
   {
     "id": "sup-201",
@@ -75,7 +75,7 @@
     "lead_time_days": 3,
     "location": "Bekasi",
     "reliability_score": 0.94,
-    "phone": "628666666666"
+    "phone": "6281318983675"
   },
   {
     "id": "sup-202",
@@ -101,7 +101,7 @@
     "lead_time_days": 1,
     "location": "Jakarta",
     "reliability_score": 0.98,
-    "phone": "628888888888"
+    "phone": "628991891005"
   },
   {
     "id": "sup-204",
@@ -114,7 +114,7 @@
     "lead_time_days": 2,
     "location": "Depok",
     "reliability_score": 0.91,
-    "phone": "628999999999"
+    "phone": "6281221186588"
   },
   {
     "id": "sup-205",
@@ -127,7 +127,7 @@
     "lead_time_days": 3,
     "location": "Bogor",
     "reliability_score": 0.89,
-    "phone": "628101010101"
+    "phone": "6281315694953"
   },
   {
     "id": "sup-301",
@@ -165,7 +165,7 @@
     "max_capacity_qty": 500000,
     "lead_time_days": 10,
     "location": "Bandung",
-    "reliability_score": 0.80,
+    "reliability_score": 0.8,
     "phone": "628141414141"
   },
   {

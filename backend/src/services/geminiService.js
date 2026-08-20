@@ -5,14 +5,36 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'dummy' });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Format angka Indonesia: "." adalah pemisah ribuan, "," adalah pemisah desimal
+// (kebalikan dari format Inggris yang dipahami parseFloat secara default).
+function parseIndoNumber(numStr) {
+    return parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
+}
+
+const QTY_UNIT_WORDS = 'kg|ton|batang|meter|pcs|pieces|unit|lembar|dus|karung|sak|liter|roll|gulung|buah|pack|box|kardus|m2|m3';
+const BUDGET_KEYWORDS = /rp|idr|budget|anggaran|maksimal/i;
+
 function heuristicParser(rawInput) {
     const defaultDate = new Date();
     const lowerInput = rawInput.toLowerCase();
-    
-    if (lowerInput.includes('bulan depan')) {
+
+    // Terima "N hari/minggu/bulan", dengan atau tanpa akhiran "lagi"/"kedepan"/"ke depan"
+    const bulanMatch = lowerInput.match(/(\d+)\s*bulan(?:\s*(?:lagi|kedepan|ke depan))?\b/);
+    const mingguMatch = lowerInput.match(/(\d+)\s*minggu(?:\s*(?:lagi|kedepan|ke depan))?\b/);
+    const hariMatch = lowerInput.match(/(\d+)\s*hari(?:\s*(?:lagi|kedepan|ke depan))?\b/);
+
+    if (bulanMatch) {
+        defaultDate.setMonth(defaultDate.getMonth() + parseInt(bulanMatch[1], 10));
+    } else if (mingguMatch) {
+        defaultDate.setDate(defaultDate.getDate() + parseInt(mingguMatch[1], 10) * 7);
+    } else if (hariMatch) {
+        defaultDate.setDate(defaultDate.getDate() + parseInt(hariMatch[1], 10));
+    } else if (lowerInput.includes('bulan depan')) {
         defaultDate.setMonth(defaultDate.getMonth() + 1);
     } else if (lowerInput.includes('minggu depan')) {
         defaultDate.setDate(defaultDate.getDate() + 7);
+    } else if (lowerInput.includes('lusa')) {
+        defaultDate.setDate(defaultDate.getDate() + 2);
     } else if (lowerInput.includes('besok')) {
         defaultDate.setDate(defaultDate.getDate() + 1);
     } else if (lowerInput.includes('hari ini')) {
@@ -21,7 +43,7 @@ function heuristicParser(rawInput) {
         // default 7 hari jika tidak ada keterangan
         defaultDate.setDate(defaultDate.getDate() + 7);
     }
-    
+
     const parsed = {
         materialName: "Aluminium Grade-A",
         quantity: 1000,
@@ -30,20 +52,34 @@ function heuristicParser(rawInput) {
         targetDeliveryDate: defaultDate.toISOString(),
         priority: { cost: 40, speed: 40, risk: 20 }
     };
-    
+
     if (lowerInput.includes('baja')) parsed.materialName = "Baja Ringan";
     if (lowerInput.includes('kain') || lowerInput.includes('katun')) parsed.materialName = "Kain Katun";
-    
-    const qtyMatch = lowerInput.match(/(\d+[,.]?\d*)\s*(kg|batang|meter|ton)/i);
-    if (qtyMatch) {
-        parsed.quantity = parseFloat(qtyMatch[1].replace(/,/g, ''));
-        parsed.unit = qtyMatch[2];
+
+    const qtyWithUnit = lowerInput.match(new RegExp(`(\\d+(?:[.,]\\d+)*)\\s*(${QTY_UNIT_WORDS})\\b`, 'i'));
+    if (qtyWithUnit) {
+        parsed.quantity = parseIndoNumber(qtyWithUnit[1]);
+        parsed.unit = qtyWithUnit[2];
+    } else {
+        // Satuan tidak dikenali: ambil angka pertama yang bukan bagian dari frasa budget
+        const numberMatches = [...lowerInput.matchAll(/\d+(?:[.,]\d+)*/g)];
+        const qtyNumber = numberMatches.find(m => {
+            const context = lowerInput.slice(Math.max(0, m.index - 12), m.index);
+            return !BUDGET_KEYWORDS.test(context);
+        });
+        if (qtyNumber) {
+            parsed.quantity = parseIndoNumber(qtyNumber[0]);
+        }
     }
-    
-    const budgetMatch = lowerInput.match(/(rp|idr|budget|maksimal)\s*(\d+[,.]?\d*)/i);
+
+    const budgetMatch = lowerInput.match(/(?:rp|idr|budget|anggaran|maksimal)\s*(\d+(?:[.,]\d+)*)\s*(ribu|juta|jt|miliar|milyar)?/i);
     if (budgetMatch) {
-        let budget = parseFloat(budgetMatch[2].replace(/[,.]/g, ''));
-        if (budget < 1000) budget *= 1000000;
+        let budget = parseIndoNumber(budgetMatch[1]);
+        const unit = budgetMatch[2]?.toLowerCase();
+        if (unit === 'ribu') budget *= 1000;
+        else if (unit === 'juta' || unit === 'jt') budget *= 1000000;
+        else if (unit === 'miliar' || unit === 'milyar') budget *= 1000000000;
+        else if (budget < 1000) budget *= 1000000; // angka kecil tanpa satuan eksplisit diasumsikan "juta"
         parsed.maxBudget = budget;
     }
 
@@ -158,6 +194,62 @@ function generateWAMessagesForAllocations(allocations, requirement, companyName)
             supplier_id: allocation.supplier_id,
             phone: allocation.phone,
             message: message
+        };
+    });
+}
+
+// Dikirim ke supplier yang MENANG (dapat alokasi qty > 0) saat operator klik "Konfirmasi & Kirim PO".
+function generatePOConfirmationMessage(supplierAllocation, requirement, companyName = "Tim Procurement [Nama Perusahaan Anda]") {
+    const targetDate = new Date(requirement.targetDeliveryDate).toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'long', year: 'numeric'
+    });
+    const formattedPrice = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(supplierAllocation.cost / supplierAllocation.qty);
+
+    return `Halo ${supplierAllocation.name},
+
+Terima kasih atas konfirmasi Anda. Dengan ini kami sampaikan bahwa penawaran Anda KAMI TERIMA dan resmi menjadi Purchase Order (PO):
+
+- Material: ${requirement.materialName}
+- Kuantitas: ${supplierAllocation.qty} ${requirement.unit}
+- Harga: ${formattedPrice}/${requirement.unit}
+- Target Pengiriman: ${targetDate}
+
+Mohon segera diproses. Tim kami akan menghubungi lebih lanjut untuk detail pengiriman dan pembayaran.
+
+Terima kasih atas kerja samanya.
+
+Salam,
+${companyName}`;
+}
+
+// Dikirim ke supplier yang SUDAH CONFIRMED tapi tidak terpilih (qty = 0 setelah ranking),
+// supaya mereka tidak menunggu tanpa kepastian.
+function generateRejectionMessage(supplierAllocation, requirement, companyName = "Tim Procurement [Nama Perusahaan Anda]") {
+    return `Halo ${supplierAllocation.name},
+
+Terima kasih atas balasan dan penawaran Anda untuk kebutuhan ${requirement.materialName} kami.
+
+Setelah membandingkan seluruh penawaran yang masuk, untuk pesanan kali ini kami belum dapat melanjutkan dengan penawaran Anda karena kebutuhan kami sudah terpenuhi dari pemasok lain.
+
+Kami akan mengingat penawaran Anda untuk kebutuhan berikutnya. Terima kasih atas waktu dan kerja samanya.
+
+Salam,
+${companyName}`;
+}
+
+// Dipakai saat "Konfirmasi & Kirim PO": tiap supplier confirmed dapat PO (qty > 0)
+// atau pesan penolakan sopan (qty === 0, kalah ranking).
+function generateFinalDecisionMessages(allocations, requirement, companyName) {
+    return allocations.map((allocation) => {
+        const isWinner = (allocation.qty || 0) > 0;
+        const message = isWinner
+            ? generatePOConfirmationMessage(allocation, requirement, companyName)
+            : generateRejectionMessage(allocation, requirement, companyName);
+        return {
+            supplier_id: allocation.supplier_id,
+            phone: allocation.phone,
+            message,
+            decision: isWinner ? "po_confirmed" : "rejected"
         };
     });
 }
@@ -302,6 +394,7 @@ module.exports = {
     parseRequirementIntent,
     generateAllocationReasoning,
     generateWAMessagesForAllocations,
+    generateFinalDecisionMessages,
     classifySupplierReply,
     batchClassifySupplierReplies
 };

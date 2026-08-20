@@ -12,8 +12,16 @@ export default function OptimizationDashboard({ data, demoMode }) {
     const [replies, setReplies] = useState([]);
     const [confirmedSuppliers, setConfirmedSuppliers] = useState([]); // Supplier IDs confirmed (auto or manual)
 
+    const [computedOptimization, setComputedOptimization] = useState(null);
+    const [isRanking, setIsRanking] = useState(false);
+
+    // Semua supplier yang di-RFQ (blast ke semua yang materialnya cocok, tanpa filter MOQ/lead time).
+    // Terpisah dari `allocations`, yang sekarang cuma berisi hasil ranking dari supplier yang SUDAH confirmed.
+    const dispatchedSuppliers = (data.candidates || []).map(c => ({ ...c, supplier_id: c.supplier_id || c.id }));
+
+    // Riwayat transaksi lama: alokasi & reasoning sudah final, tinggal ditampilkan apa adanya.
     useEffect(() => {
-        if (data?.optimization?.recommended_allocations) {
+        if (data.isHistorical && data?.optimization?.recommended_allocations) {
             const initial = data.optimization.recommended_allocations.map(a => {
                 const qty = a.qty || 0;
                 return {
@@ -24,12 +32,65 @@ export default function OptimizationDashboard({ data, demoMode }) {
             });
             setAllocations(initial);
             setOriginalAllocations(JSON.parse(JSON.stringify(initial)));
-            
-            if (data.isHistorical) {
-                setConfirmedSuppliers(initial.map(a => a.supplier_id || a.phone));
-            }
+            setConfirmedSuppliers(initial.map(a => a.supplier_id || a.phone));
+            setComputedOptimization(data.optimization);
         }
     }, [data]);
+
+    // Pengadaan baru (live): ranking & alokasi baru dihitung dari supplier yang balasannya
+    // sudah "confirmed", memakai harga/qty/lead time HASIL EKSTRAKSI dari balasan asli mereka
+    // (bukan tebakan awal) — dan dihitung ulang tiap kali ada supplier baru yang confirmed.
+    useEffect(() => {
+        if (data.isHistorical) return;
+
+        if (confirmedSuppliers.length === 0) {
+            setAllocations([]);
+            setOriginalAllocations([]);
+            setComputedOptimization(null);
+            return;
+        }
+
+        const confirmedCandidates = confirmedSuppliers.map(sid => {
+            const reply = replies.find(r => (r.supplier_id || r.phone) === sid);
+            const original = dispatchedSuppliers.find(c => c.supplier_id === sid) || {};
+            return {
+                id: sid,
+                supplier_id: sid,
+                name: reply?.supplier_name || original.name,
+                location: original.location,
+                phone: reply?.phone || original.phone,
+                price_per_unit: reply?.ai_extracted?.price ?? original.price_per_unit,
+                lead_time_days: reply?.ai_extracted?.lead_time_days ?? original.lead_time_days,
+                // Qty yang disanggupi supplier tidak boleh melebihi kapasitas produksi asli
+                // mereka, meskipun balasan (atau heuristik demo) bilang lebih besar dari itu.
+                max_capacity_qty: Math.min(
+                    reply?.ai_extracted?.qty ?? original.max_capacity_qty ?? data.requirement.quantity,
+                    original.max_capacity_qty ?? Infinity
+                ),
+                min_order_qty: 0,
+                reliability_score: original.reliability_score ?? 0.8
+            };
+        });
+
+        setIsRanking(true);
+        client.post('/optimize', { requirement: data.requirement, candidates: confirmedCandidates })
+            .then(res => {
+                const initial = res.data.recommended_allocations.map(a => {
+                    const qty = a.qty || 0;
+                    return {
+                        ...a,
+                        qty,
+                        cost: a.cost !== undefined ? a.cost : Math.round(qty * (a.price_per_unit || 0))
+                    };
+                });
+                setAllocations(initial);
+                setOriginalAllocations(JSON.parse(JSON.stringify(initial)));
+                setComputedOptimization(res.data);
+            })
+            .catch(err => console.error("Gagal menghitung ranking dari balasan supplier", err))
+            .finally(() => setIsRanking(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [confirmedSuppliers.join(','), data.isHistorical]);
 
     // Poll supplier replies
     const fetchReplies = async () => {
@@ -66,13 +127,13 @@ export default function OptimizationDashboard({ data, demoMode }) {
     }, [data.dispatch_id, data.isHistorical]);
 
     const handleSimulate = async (style) => {
-        if (!allocations || allocations.length === 0) {
+        if (!dispatchedSuppliers || dispatchedSuppliers.length === 0) {
             toast.error("Belum ada supplier.");
             return;
         }
         // Find the first supplier that doesn't have a reply yet
-        let supplier = allocations.find(a => !getReplyForAllocation(a));
-        if (!supplier) supplier = allocations[0]; // fallback
+        let supplier = dispatchedSuppliers.find(a => !getReplyForAllocation(a));
+        if (!supplier) supplier = dispatchedSuppliers[0]; // fallback
         
         const toastId = toast.loading(`Mensimulasikan balasan (${style})...`);
         try {
@@ -129,20 +190,23 @@ export default function OptimizationDashboard({ data, demoMode }) {
     const resetAllocations = () => setAllocations(JSON.parse(JSON.stringify(originalAllocations)));
 
     const handleFinalSubmit = async () => {
-        const toastId = toast.loading("Mengirim konfirmasi jual beli ke supplier...");
+        const toastId = toast.loading("Mengirim keputusan akhir ke supplier (PO untuk yang menang, penolakan untuk yang tidak terpilih)...");
         try {
-            await client.post('/dispatch-wa', {
+            const res = await client.post('/dispatch-wa', {
                 allocations: allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone)),
                 requirement: data.requirement,
-                companyName: "PT Pasokin Demo"
+                companyName: "PT Pasokin Demo",
+                type: "final"
             });
-            toast.success("Konfirmasi jual beli berhasil dikirim!", { id: toastId });
+            const wonCount = res.data.results.filter(r => r.decision === 'po_confirmed').length;
+            const rejectedCount = res.data.results.filter(r => r.decision === 'rejected').length;
+            toast.success(`PO terkirim ke ${wonCount} supplier, penolakan terkirim ke ${rejectedCount} supplier.`, { id: toastId });
         } catch (err) {
-            toast.error("Gagal mengirim konfirmasi", { id: toastId });
+            toast.error("Gagal mengirim keputusan akhir", { id: toastId });
         }
     };
 
-    if (!allocations.length) return null;
+    if (!dispatchedSuppliers.length) return null;
 
     const activeAllocations = allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone));
     const totalAllocatedQty = activeAllocations.reduce((sum, a) => sum + (a.qty || 0), 0);
@@ -184,7 +248,11 @@ export default function OptimizationDashboard({ data, demoMode }) {
                         Analisis AI Pasokin <Bot className="h-5 w-5 text-amber-500" />
                     </h3>
                     <p className="text-slate-600 leading-relaxed text-base font-medium">
-                        {data.optimization.ai_reasoning}
+                        {computedOptimization?.ai_reasoning || (
+                            isRanking
+                                ? "Menghitung rekomendasi alokasi dari balasan supplier yang confirmed..."
+                                : `RFQ sudah dikirim ke ${dispatchedSuppliers.length} supplier yang memiliki material ini. Alokasi & ranking akan dihitung begitu ada balasan yang confirmed — bukan sebelumnya, karena kita menunggu tahu harga/kuantitas/lead time yang benar-benar mereka sanggupi.`
+                        )}
                     </p>
                 </div>
             </div>
@@ -316,7 +384,7 @@ export default function OptimizationDashboard({ data, demoMode }) {
                 )}
 
                 <div className="divide-y divide-slate-100">
-                    {allocations.map(alloc => {
+                    {dispatchedSuppliers.map(alloc => {
                         const reply = getReplyForAllocation(alloc);
                         const isConfirmedByAI = reply?.classification === 'confirmed';
                         const needsAction = reply && !isConfirmedByAI && !confirmedSuppliers.includes(alloc.supplier_id || alloc.phone);

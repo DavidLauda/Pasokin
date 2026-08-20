@@ -39,7 +39,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
             .then(res => {
                 setResults(res.data.results || []);
                 setDispatchStatus('done');
-                if (onDispatchComplete) onDispatchComplete();
+                if (onDispatchComplete) onDispatchComplete(res.data);
             })
             .catch(err => {
                 console.error(err);

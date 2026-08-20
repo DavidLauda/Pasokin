@@ -184,7 +184,7 @@ router.post('/simulate-all', async (req, res) => {
     if (allLogs.length === 0) return res.status(404).json({ error: "Dispatch not found" });
 
     const allReplies = repliesStore.getAllReplies();
-    const waitingLogs = allLogs.filter(l => !allReplies.some(r => r.supplier_id === l.supplier_id));
+    const waitingLogs = allLogs.filter(l => !allReplies.some(r => r.supplier_id === l.supplier_id && r.dispatch_id === l.dispatch_id));
 
     if (waitingLogs.length === 0) {
         return res.json({ message: "Tidak ada supplier yang menunggu balasan." });
@@ -224,31 +224,12 @@ router.post('/simulate-all', async (req, res) => {
         newReplies.push({ replyEntry, log });
     });
 
-    // Batch classification
-    const requirementSnapshot = allLogs[0].requirement_snapshot; // same for all in dispatch
-    const repliesData = newReplies.map(item => ({
-        reply_id: item.replyEntry.reply_id,
-        supplier_name: item.log.name,
-        qty_requested: item.log.allocation_snapshot.qty,
-        target_price: item.log.allocation_snapshot.price,
-        lead_time_days: item.log.allocation_snapshot.lead_time_days,
-        reply_text: item.replyEntry.message_received
-    }));
-
-    try {
-        const batchResults = await geminiService.batchClassifySupplierReplies(requirementSnapshot, repliesData);
-        
-        // Update database with results
-        batchResults.forEach(result => {
-            repliesStore.updateReply(result.reply_id, {
-                classification: result.classification,
-                ai_summary: result.ai_summary,
-                ai_extracted: result.ai_extracted
-            });
-        });
-    } catch (err) {
-        console.error("Batch classify error inside simulate-all:", err);
-    }
+    // Klasifikasikan tiap reply lewat pipeline triage yang sama dengan endpoint
+    // /simulate (fine-tuned triage model / heuristik demo), bukan Gemini langsung,
+    // supaya konsisten dengan alur balasan WhatsApp asli.
+    await Promise.allSettled(
+        newReplies.map(item => whatsappService.processReplyClassification(item.replyEntry, item.log))
+    );
 
     res.json({ message: "Simulasi batched selesai.", count: newReplies.length });
 });

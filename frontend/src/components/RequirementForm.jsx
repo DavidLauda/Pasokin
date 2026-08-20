@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Package, Wallet, Calendar, Scale, Loader2, ChevronDown, ChevronUp, Sparkles, X, Check, Edit3, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
+import WhatsAppStatusModal from './WhatsAppStatusModal';
 
-export default function RequirementForm({ onConfirm, onLoadingStart, onError }) {
+export default function RequirementForm({ onConfirm }) {
     // Natural language input
     const [rawInput, setRawInput] = useState('');
     
@@ -27,6 +28,12 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
     const [showSummary, setShowSummary] = useState(false);
     const [parsedRequirement, setParsedRequirement] = useState(null);
     const [candidates, setCandidates] = useState([]);
+
+    // Modal status WhatsApp (QR scan / progres dispatch RFQ)
+    const [waModalOpen, setWaModalOpen] = useState(false);
+    const [waModalKey, setWaModalKey] = useState(0);
+    const [pendingAllocations, setPendingAllocations] = useState([]);
+    const [dispatchResult, setDispatchResult] = useState(null);
 
     useEffect(() => {
         client.get('/suppliers')
@@ -113,49 +120,54 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
         }
     };
 
-    const handleConfirm = async () => {
+    const handleConfirm = () => {
         setShowSummary(false);
-        if (onLoadingStart) onLoadingStart();
-        
-        const toastId = toast.loading("Mengirim RFQ ke " + candidates.length + " supplier...");
 
-        try {
-            // Blast RFQ ke SEMUA candidates yang cocok dengan kriteria
-            const allCandidatesAllocations = candidates.map(c => ({
-                ...c,
-                supplier_id: c.id,
-                qty: parsedRequirement.quantity, // Tanyakan full kuantitas ke semua supplier
-                price: c.price_per_unit || (parsedRequirement.maxBudget / parsedRequirement.quantity)
-            }));
+        // Blast RFQ ke SEMUA candidates yang cocok dengan kriteria
+        const allCandidatesAllocations = candidates.map(c => ({
+            ...c,
+            supplier_id: c.id,
+            qty: parsedRequirement.quantity, // Tanyakan full kuantitas ke semua supplier
+            price: c.price_per_unit || (parsedRequirement.maxBudget / parsedRequirement.quantity)
+        }));
 
-            const dispatchRes = await client.post('/dispatch-wa', {
-                allocations: allCandidatesAllocations,
+        // Pengiriman sesungguhnya (termasuk tunggu scan QR kalau belum connect di mode Live)
+        // ditangani oleh WhatsAppStatusModal, bukan di sini.
+        setPendingAllocations(allCandidatesAllocations);
+        setDispatchResult(null);
+        setWaModalKey(k => k + 1); // pastikan state modal fresh tiap dibuka
+        setWaModalOpen(true);
+    };
+
+    const handleDispatchComplete = (data) => {
+        setDispatchResult(data);
+    };
+
+    const handleWaModalClose = () => {
+        setWaModalOpen(false);
+
+        const results = dispatchResult?.results || [];
+        const successCount = results.filter(r => r.status === 'sent').length;
+
+        if (successCount === 0) {
+            toast.error("Tidak ada RFQ yang berhasil terkirim. Coba lagi.");
+            return; // tetap di form input supaya bisa dicoba ulang
+        }
+        if (successCount < results.length) {
+            toast.error(`${successCount} dari ${results.length} RFQ terkirim, sisanya gagal.`);
+        } else {
+            toast.success(`RFQ berhasil dikirim ke ${successCount} supplier!`);
+        }
+
+        // Ranking & alokasi TIDAK dihitung di sini — baru dihitung setelah ada
+        // balasan supplier yang confirmed (lihat OptimizationDashboard), karena
+        // hanya supplier sendiri yang tahu pasti apa yang sanggup mereka penuhi.
+        if (onConfirm) {
+            onConfirm({
                 requirement: parsedRequirement,
-                companyName: "PT Pasokin Demo"
+                candidates: candidates,
+                dispatch_id: dispatchResult?.dispatch_id
             });
-            
-            toast.loading("Mempersiapkan baseline rekomendasi AI...", { id: toastId });
-
-            // Tetap ambil baseline AI reasoning untuk dashboard
-            const optimizeRes = await client.post('/optimize', {
-                requirement: parsedRequirement,
-                candidates: candidates
-            });
-
-            toast.success("RFQ berhasil dikirim ke " + allCandidatesAllocations.length + " supplier!", { id: toastId });
-
-            if (onConfirm) {
-                onConfirm({
-                    requirement: parsedRequirement,
-                    candidates: candidates,
-                    optimization: optimizeRes.data,
-                    dispatch_id: dispatchRes.data.dispatch_id
-                });
-            }
-        } catch (err) {
-            console.error(err);
-            toast.error(err?.response?.data?.error || "Gagal memproses optimasi.", { id: toastId });
-            if (onError) onError();
         }
     };
 
@@ -378,6 +390,16 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
                     </div>
                 </div>
             )}
+
+            <WhatsAppStatusModal
+                key={waModalKey}
+                isOpen={waModalOpen}
+                onClose={handleWaModalClose}
+                requirement={parsedRequirement}
+                allocations={pendingAllocations}
+                companyName="PT Pasokin Demo"
+                onDispatchComplete={handleDispatchComplete}
+            />
         </div>
     );
 }

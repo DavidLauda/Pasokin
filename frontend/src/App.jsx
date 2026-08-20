@@ -8,12 +8,14 @@ import TransactionHistory from './components/TransactionHistory';
 import client from './api/client';
 
 function App() {
-  const [appState, setAppState] = useState('input'); // 'input' | 'loading_dashboard' | 'dashboard' | 'suppliers'
+  const [appState, setAppState] = useState('input'); // 'input' | 'dashboard' | 'suppliers' | 'history'
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [health, setHealth] = useState({ status: 'unknown', demoMode: false });
 
   useEffect(() => {
-    client.get('/health').then(res => setHealth(res.data)).catch(() => {});
+    client.get('/health').then(res => setHealth(res.data)).catch(() => {
+      toast.error("Tidak dapat terhubung ke server backend");
+    });
   }, []);
 
   const handleConfirm = (data) => {
@@ -83,8 +85,8 @@ function App() {
 
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
             <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input'); setOptimizationResult(null);}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['input', 'loading_dashboard', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${['input', 'loading_dashboard', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input'); setOptimizationResult(null);}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['input', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${['input', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
             <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -114,7 +116,7 @@ function App() {
             <div className="flex items-center gap-4">
                 <h1 className="text-2xl font-extrabold text-slate-900">
                     {appState === 'input' ? 'Pengadaan Baru' : 
-                     appState === 'dashboard' || appState === 'loading_dashboard' ? 'Dashboard Pengadaan' : 
+                     appState === 'dashboard' ? 'Dashboard Pengadaan' :
                      appState === 'suppliers' ? 'Manajemen Supplier' : 'Dashboard'}
                 </h1>
             </div>
@@ -144,26 +146,10 @@ function App() {
                 {/* Input State */}
                 {appState === 'input' && (
                     <div className="flex justify-center pt-8">
-                        <RequirementForm 
-                            onConfirm={handleConfirm}
-                            onLoadingStart={() => setAppState('loading_dashboard')}
-                            onError={() => setAppState('input')}
-                        />
+                        <RequirementForm onConfirm={handleConfirm} />
                     </div>
                 )}
 
-                {/* Loading State */}
-                {appState === 'loading_dashboard' && (
-                    <div className="w-full mx-auto space-y-6 animate-pulse">
-                        <div className="bg-slate-200 h-24 rounded-3xl w-full"></div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-slate-200 h-40 rounded-3xl"></div>
-                            <div className="bg-slate-200 h-40 rounded-3xl"></div>
-                            <div className="bg-slate-200 h-40 rounded-3xl"></div>
-                        </div>
-                    </div>
-                )}
-            
                 {/* Dashboard State */}
                 {appState === 'dashboard' && optimizationResult && (
                     <div className="space-y-4">

@@ -70,9 +70,16 @@ async function initWhatsApp() {
             const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('[WhatsApp] Connection closed, reconnecting:', shouldReconnect);
             connectionState = 'disconnected';
-            
+
+            // Reset sock & QR lama supaya initWhatsApp() di bawah benar-benar bikin
+            // koneksi + QR baru, bukan cuma keluar lewat guard "Already initialized".
+            sock = null;
+            currentQR = null;
+
             if (shouldReconnect) {
-                initWhatsApp();
+                // Jeda sebelum reconnect: mencegah loop connect/disconnect cepat yang
+                // polanya mirip bot dan bisa memicu WhatsApp menandai/membatasi akun.
+                setTimeout(() => initWhatsApp(), 5000);
             } else {
                 console.log("[WhatsApp] Logged out. Tolong hapus folder .baileys_auth dan restart.");
             }

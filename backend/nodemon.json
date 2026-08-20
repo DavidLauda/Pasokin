@@ -1,5 +1,6 @@
 {
   "ignore": [
-    "src/data/*"
+    "src/data/*",
+    ".baileys_auth/*"
   ]
 }

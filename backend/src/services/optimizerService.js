@@ -50,32 +50,38 @@ function optimizeAllocation(requirement, candidates) {
     // Urutkan supplier dari skor AI tertinggi ke terendah
     scoredCandidates.sort((a, b) => b.score - a.score);
 
-    // 4. TAHAP KEEMPAT: Greedy Allocation Algorithm
-    let remainingQty = requirement.quantity;
+    // 4. TAHAP KEEMPAT: Greedy Waterfall Allocation
+    // Isi kuantitas dari supplier skor TERTINGGI dulu sampai kebutuhan terpenuhi.
+    // Supplier peringkat bawah cuma kebagian sisa kebutuhan (kalau ada). SEMUA kandidat
+    // tetap ditampilkan di hasil (urut ranking) supaya kelihatan urutannya — begitu
+    // kebutuhan sudah penuh, supplier sisanya cuma dapat qty 0, bukan dihilangkan.
+    let remainingQty = requirement.quantity > 0 ? requirement.quantity : 1;
     let remainingBudget = requirement.maxBudget || Infinity;
     const allocations = [];
 
-    if (!remainingQty || remainingQty <= 0) remainingQty = 1;
-
     for (const supplier of scoredCandidates) {
-        // Bagi kuantitas secara merata ke semua supplier agar semuanya mendapat blast RFQ
-        const idealQty = Math.ceil(requirement.quantity / scoredCandidates.length);
-        let qtyToTake = Math.min(supplier.max_capacity_qty, idealQty);
+        let qtyToTake = 0;
 
-        // Cek constraint MOQ (Minimum Order Quantity)
-        if (qtyToTake < supplier.min_order_qty) {
-            qtyToTake = supplier.min_order_qty;
-        }
+        if (remainingQty > 0) {
+            qtyToTake = Math.min(supplier.max_capacity_qty, remainingQty);
 
-        const costToTake = qtyToTake * supplier.price_per_unit;
-
-        // Cek Constraint Budget
-        if (costToTake > remainingBudget) {
-            let maxQtyForBudget = Math.floor(remainingBudget / supplier.price_per_unit);
-            if (maxQtyForBudget < supplier.min_order_qty) {
-                continue; // Skip if we can't even afford MOQ
+            // Cek constraint MOQ (Minimum Order Quantity): kalau sisa kebutuhan lebih kecil
+            // dari MOQ supplier ini, supplier ini tidak kebagian (qty 0), bukan dipaksa over-order.
+            if (qtyToTake < supplier.min_order_qty) {
+                qtyToTake = 0;
             }
-            qtyToTake = Math.min(qtyToTake, maxQtyForBudget);
+
+            // Cek Constraint Budget
+            if (qtyToTake > 0) {
+                const costToTake = qtyToTake * supplier.price_per_unit;
+                if (costToTake > remainingBudget) {
+                    let maxQtyForBudget = Math.floor(remainingBudget / supplier.price_per_unit);
+                    if (maxQtyForBudget < supplier.min_order_qty) {
+                        maxQtyForBudget = 0; // Skip if we can't even afford MOQ
+                    }
+                    qtyToTake = Math.min(qtyToTake, maxQtyForBudget);
+                }
+            }
         }
 
         const actualCost = qtyToTake * supplier.price_per_unit;
@@ -91,7 +97,10 @@ function optimizeAllocation(requirement, candidates) {
             phone: supplier.phone
         });
 
-        remainingBudget -= actualCost;
+        if (qtyToTake > 0) {
+            remainingBudget -= actualCost;
+            remainingQty -= qtyToTake;
+        }
     }
 
     const totalAllocatedQty = allocations.reduce((sum, a) => sum + a.qty, 0);
@@ -99,7 +108,7 @@ function optimizeAllocation(requirement, candidates) {
 
     // Hitung persentase untuk frontend (UI donat / pie chart)
     allocations.forEach(a => {
-        a.percentage = parseFloat(((a.qty / totalAllocatedQty) * 100).toFixed(1));
+        a.percentage = totalAllocatedQty > 0 ? parseFloat(((a.qty / totalAllocatedQty) * 100).toFixed(1)) : 0;
     });
 
     // 5. TAHAP KELIMA: Hitung Penghematan (Savings Estimate)
