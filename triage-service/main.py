@@ -108,12 +108,27 @@ def load_model():
 
 
 def _extract_json(raw_text: str) -> dict:
-    """Model kadang membungkus JSON dengan teks lain atau markdown fences.
-    Ambil blok {...} pertama yang valid."""
-    match = re.search(r"\{.*\}", raw_text, re.DOTALL)
-    if not match:
+    """Ekstrak JSON dengan menghitung bracket agar kebal dari trailing garbage."""
+    start_idx = raw_text.find('{')
+    if start_idx == -1:
         raise ValueError("Tidak ada objek JSON ditemukan di output model.")
-    return json.loads(match.group(0))
+    
+    brace_count = 0
+    end_idx = -1
+    for i in range(start_idx, len(raw_text)):
+        if raw_text[i] == '{':
+            brace_count += 1
+        elif raw_text[i] == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                end_idx = i
+                break
+                
+    if end_idx == -1:
+        raise ValueError("Struktur JSON tidak tertutup dengan benar.")
+        
+    json_str = raw_text[start_idx:end_idx+1]
+    return json.loads(json_str)
 
 
 @app.post("/triage", response_model=TriageResponse)
