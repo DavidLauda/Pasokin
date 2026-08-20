@@ -6,3 +6,4 @@ transformers
 peft
 accelerate
 pydantic==2.9.2
+python-dotenv

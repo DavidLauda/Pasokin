@@ -23,6 +23,7 @@ import os
 import re
 
 import torch
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -30,6 +31,9 @@ from peft import PeftModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("pasokin-triage")
+
+# Load environment variables from .env file if it exists
+load_dotenv()
 
 BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "google/gemma-2b-it")
 ADAPTER_PATH = os.environ.get("ADAPTER_PATH", "./adapter")

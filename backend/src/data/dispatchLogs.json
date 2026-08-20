@@ -1762,5 +1762,89 @@
     },
     "dispatched_at": "2026-08-19T15:11:51.075Z",
     "status": "sent"
+  },
+  {
+    "dispatch_id": "17bf252b-3c84-4815-ac19-ccae675c7045",
+    "supplier_id": "sup-301",
+    "name": "PT Tekstil Sejahtera",
+    "phone": "628121212121",
+    "message_sent": "Halo PT Tekstil Sejahtera,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Kain Katun\n- Kuantitas: 2000 meter\n- Target Harga (indikatif): RpNaN/meter\n- Target Pengiriman: 20 September 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\nReply chat ini dengan menyebutkan jumlah stok yang tersedia, harga yang ditawarkan, dan kapan barang dapat dikirim. \n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Kain Katun",
+      "quantity": 2000,
+      "unit": "meter",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-09-20T03:19:08.815Z"
+    },
+    "allocation_snapshot": {
+      "qty": 2000,
+      "price": 35000,
+      "lead_time_days": 5
+    },
+    "dispatched_at": "2026-08-20T03:19:19.730Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "17bf252b-3c84-4815-ac19-ccae675c7045",
+    "supplier_id": "sup-302",
+    "name": "CV Benang Kusut",
+    "phone": "628131313131",
+    "message_sent": "Halo CV Benang Kusut,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Kain Katun\n- Kuantitas: 2000 meter\n- Target Harga (indikatif): RpNaN/meter\n- Target Pengiriman: 20 September 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\nReply chat ini dengan menyebutkan jumlah stok yang tersedia, harga yang ditawarkan, dan kapan barang dapat dikirim. \n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Kain Katun",
+      "quantity": 2000,
+      "unit": "meter",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-09-20T03:19:08.815Z"
+    },
+    "allocation_snapshot": {
+      "qty": 2000,
+      "price": 38000,
+      "lead_time_days": 2
+    },
+    "dispatched_at": "2026-08-20T03:19:19.732Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "17bf252b-3c84-4815-ac19-ccae675c7045",
+    "supplier_id": "sup-304",
+    "name": "Toko Kain Sentosa",
+    "phone": "628151515151",
+    "message_sent": "Halo Toko Kain Sentosa,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Kain Katun\n- Kuantitas: 2000 meter\n- Target Harga (indikatif): RpNaN/meter\n- Target Pengiriman: 20 September 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\nReply chat ini dengan menyebutkan jumlah stok yang tersedia, harga yang ditawarkan, dan kapan barang dapat dikirim. \n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Kain Katun",
+      "quantity": 2000,
+      "unit": "meter",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-09-20T03:19:08.815Z"
+    },
+    "allocation_snapshot": {
+      "qty": 2000,
+      "price": 36500,
+      "lead_time_days": 4
+    },
+    "dispatched_at": "2026-08-20T03:19:19.733Z",
+    "status": "sent"
+  },
+  {
+    "dispatch_id": "17bf252b-3c84-4815-ac19-ccae675c7045",
+    "supplier_id": "sup-305",
+    "name": "PT Rajut Indah",
+    "phone": "628161616161",
+    "message_sent": "Halo PT Rajut Indah,\n\nPerkenalkan kami dari PT Pasokin Demo. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: Kain Katun\n- Kuantitas: 2000 meter\n- Target Harga (indikatif): RpNaN/meter\n- Target Pengiriman: 20 September 2026\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\nReply chat ini dengan menyebutkan jumlah stok yang tersedia, harga yang ditawarkan, dan kapan barang dapat dikirim. \n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\nPT Pasokin Demo",
+    "requirement_snapshot": {
+      "materialName": "Kain Katun",
+      "quantity": 2000,
+      "unit": "meter",
+      "maxBudget": 100000000,
+      "targetDeliveryDate": "2026-09-20T03:19:08.815Z"
+    },
+    "allocation_snapshot": {
+      "qty": 2000,
+      "price": 35500,
+      "lead_time_days": 3
+    },
+    "dispatched_at": "2026-08-20T03:19:19.734Z",
+    "status": "sent"
   }
 ]

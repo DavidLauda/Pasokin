@@ -1315,5 +1315,33 @@
     "human_override": true,
     "resolved": false,
     "override_note": "Dikonfirmasi manual oleh admin"
+  },
+  {
+    "reply_id": "d7e170a4-271a-486a-b619-8eea0c077b95",
+    "dispatch_id": "17bf252b-3c84-4815-ac19-ccae675c7045",
+    "supplier_id": "sup-302",
+    "supplier_name": "CV Benang Kusut",
+    "phone": "628131313131",
+    "message_received": "Baik pak, stok ada dan harga sesuai. Bisa kita kirim segera.",
+    "received_at": "2026-08-20T03:19:47.989Z",
+    "classification": "pending",
+    "ai_summary": "Sedang menganalisis...",
+    "ai_extracted": null,
+    "human_override": false,
+    "resolved": false
+  },
+  {
+    "reply_id": "2aa2b4e8-a9ca-47c5-a08a-af975628e254",
+    "dispatch_id": "17bf252b-3c84-4815-ac19-ccae675c7045",
+    "supplier_id": "sup-304",
+    "supplier_name": "Toko Kain Sentosa",
+    "phone": "628151515151",
+    "message_received": "Waduh pak, kalau harga segitu ga dapet sekarang. Harganya naik sedikit. Gimana?",
+    "received_at": "2026-08-20T03:19:47.991Z",
+    "classification": "pending",
+    "ai_summary": "Sedang menganalisis...",
+    "ai_extracted": null,
+    "human_override": false,
+    "resolved": false
   }
 ]
