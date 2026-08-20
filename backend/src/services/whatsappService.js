@@ -2,7 +2,7 @@ const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whis
 const QRCode = require('qrcode');
 const dispatchLog = require('./dispatchLog');
 const repliesStore = require('./repliesStore');
-const geminiService = require('./geminiService');
+const triageService = require('./triageService');
 const crypto = require('crypto');
 const configService = require('./configService');
 
@@ -12,7 +12,7 @@ let currentQR = null;
 
 async function processReplyClassification(replyEntry, latestDispatch) {
     try {
-        const result = await geminiService.classifySupplierReply(
+        const result = await triageService.classifySupplierReply(
             latestDispatch.requirement_snapshot,
             latestDispatch.allocation_snapshot,
             replyEntry.message_received

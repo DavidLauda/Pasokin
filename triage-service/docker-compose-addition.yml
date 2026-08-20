@@ -1,0 +1,28 @@
+# Tambahkan service ini ke docker-compose.yml utama Pasokin,
+# sejajar dengan service backend dan frontend yang sudah ada.
+
+  triage-service:
+    build:
+      context: ./triage-service
+    ports:
+      - "8001:8001"
+    environment:
+      - BASE_MODEL_ID=google/gemma-2b-it
+      - ADAPTER_PATH=/app/adapter
+      - USE_4BIT=auto
+    # Kalau host punya GPU dan pakai Docker + nvidia-container-toolkit,
+    # aktifkan baris berikut biar inference jauh lebih cepat:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Di service "backend", tambahkan env var ini biar tahu ke mana harus manggil:
+  # backend:
+  #   environment:
+  #     - TRIAGE_SERVICE_URL=http://triage-service:8001
+  #   depends_on:
+  #     - triage-service

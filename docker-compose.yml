@@ -11,6 +11,9 @@ services:
     environment:
       - PORT=4000
       - DEMO_MODE=true
+      - TRIAGE_SERVICE_URL=http://triage-service:8001
+    depends_on:
+      - triage-service
     # Install dependencies only if node_modules doesn't exist to speed up restarts
     command: sh -c "npm install && npm run dev"
 
@@ -25,3 +28,23 @@ services:
       - VITE_API_URL=http://localhost:4000/api
       - CHOKIDAR_USEPOLLING=true
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+  triage-service:
+    build:
+      context: ./triage-service
+    ports:
+      - "8001:8001"
+    environment:
+      - BASE_MODEL_ID=google/gemma-2b-it
+      - ADAPTER_PATH=/app/adapter
+      - USE_4BIT=auto
+      - HF_TOKEN=${HF_TOKEN}
+    # Kalau host punya GPU dan pakai Docker + nvidia-container-toolkit,
+    # aktifkan baris berikut biar inference jauh lebih cepat:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #         devices:
+    #           - driver: nvidia
+    #             count: 1
+    #             capabilities: [gpu]
