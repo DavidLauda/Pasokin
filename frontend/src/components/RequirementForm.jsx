@@ -124,12 +124,17 @@ export default function RequirementForm({ onConfirm }) {
         setShowSummary(false);
 
         // Blast RFQ ke SEMUA candidates yang cocok dengan kriteria
-        const allCandidatesAllocations = candidates.map(c => ({
-            ...c,
-            supplier_id: c.id,
-            qty: parsedRequirement.quantity, // Tanyakan full kuantitas ke semua supplier
-            price: c.price_per_unit || (parsedRequirement.maxBudget / parsedRequirement.quantity)
-        }));
+        const allCandidatesAllocations = candidates.map(c => {
+            const qty = parsedRequirement.quantity; // Tanyakan full kuantitas ke semua supplier
+            const price = c.price_per_unit || (parsedRequirement.maxBudget / parsedRequirement.quantity);
+            return {
+                ...c,
+                supplier_id: c.id,
+                qty,
+                price,
+                cost: price * qty // dipakai template pesan WA untuk hitung harga per unit (cost/qty)
+            };
+        });
 
         // Pengiriman sesungguhnya (termasuk tunggu scan QR kalau belum connect di mode Live)
         // ditangani oleh WhatsAppStatusModal, bukan di sini.

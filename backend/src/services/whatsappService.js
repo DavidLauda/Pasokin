@@ -1,14 +1,19 @@
-const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const QRCode = require('qrcode');
+const axios = require('axios');
 const dispatchLog = require('./dispatchLog');
 const repliesStore = require('./repliesStore');
 const triageService = require('./triageService');
 const crypto = require('crypto');
 const configService = require('./configService');
 
-let sock = null;
-let connectionState = 'disconnected'; 
-let currentQR = null;
+// Fonnte: WhatsApp gateway pihak ketiga. Device ditautkan lewat dashboard Fonnte
+// (fonnte.com), bukan lewat QR di aplikasi ini — jauh lebih kecil risiko akun
+// ditandai WhatsApp dibanding self-host socket unofficial (mis. Baileys).
+const FONNTE_TOKEN = process.env.FONNTE_TOKEN;
+const FONNTE_API_URL = 'https://api.fonnte.com';
+
+let cachedStatus = null;
+let cachedStatusAt = 0;
+const STATUS_CACHE_MS = 10000; // hindari nge-hit API Fonnte tiap kali modal polling (3 detik sekali)
 
 async function processReplyClassification(replyEntry, latestDispatch) {
     try {
@@ -35,105 +40,21 @@ async function processReplyClassification(replyEntry, latestDispatch) {
 async function initWhatsApp() {
     if (configService.isDemoMode()) {
         console.log("[MOCK] WhatsApp Service running in DEMO_MODE. No real connection will be made.");
-        connectionState = 'connected';
         return;
     }
-
-    if (sock) {
-        console.log("[WhatsApp] Already initialized.");
+    if (!FONNTE_TOKEN) {
+        console.warn("[Fonnte] FONNTE_TOKEN belum diisi di backend/.env — WhatsApp Live tidak akan berfungsi.");
         return;
     }
+    console.log("[Fonnte] Live mode aktif. Pastikan device sudah ditautkan lewat dashboard Fonnte, dan webhook URL (POST /api/wa/webhook) sudah diset di sana untuk menerima balasan masuk.");
+}
 
-    const { state, saveCreds } = await useMultiFileAuthState('./.baileys_auth');
-
-    sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        logger: require('pino')({ level: 'silent' })
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-            connectionState = 'qr_pending';
-            currentQR = qr;
-            console.log("\n[WhatsApp] Scan QR ini untuk login:");
-            QRCode.toString(qr, { type: 'terminal', small: true }, function (err, url) {
-                if (!err) console.log(url);
-            });
-        }
-
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('[WhatsApp] Connection closed, reconnecting:', shouldReconnect);
-            connectionState = 'disconnected';
-
-            // Reset sock & QR lama supaya initWhatsApp() di bawah benar-benar bikin
-            // koneksi + QR baru, bukan cuma keluar lewat guard "Already initialized".
-            sock = null;
-            currentQR = null;
-
-            if (shouldReconnect) {
-                // Jeda sebelum reconnect: mencegah loop connect/disconnect cepat yang
-                // polanya mirip bot dan bisa memicu WhatsApp menandai/membatasi akun.
-                setTimeout(() => initWhatsApp(), 5000);
-            } else {
-                console.log("[WhatsApp] Logged out. Tolong hapus folder .baileys_auth dan restart.");
-            }
-        } else if (connection === 'open') {
-            console.log('[WhatsApp] Terhubung!');
-            connectionState = 'connected';
-            currentQR = null;
-        }
-    });
-
-    sock.ev.on('messages.upsert', async m => {
-        if (m.type !== 'notify') return;
-        
-        for (const msg of m.messages) {
-            if (!msg.message || msg.key.fromMe) continue;
-            
-            const senderJid = msg.key.remoteJid;
-            const senderPhone = senderJid.split('@')[0];
-            const messageText = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-            
-            if (!messageText) continue;
-
-            const logs = dispatchLog.getAllLogs().filter(l => {
-                let lp = l.phone.replace(/\D/g, '');
-                if (lp.startsWith('0')) lp = '62' + lp.substring(1);
-                return lp === senderPhone;
-            });
-            
-            const latestDispatch = logs.length > 0 ? logs[logs.length - 1] : null;
-            
-            const reply_id = crypto.randomUUID();
-            const replyEntry = {
-                reply_id,
-                dispatch_id: latestDispatch ? latestDispatch.dispatch_id : null,
-                supplier_id: latestDispatch ? latestDispatch.supplier_id : null,
-                supplier_name: latestDispatch ? latestDispatch.name : null,
-                phone: senderPhone,
-                message_received: messageText,
-                received_at: new Date().toISOString(),
-                classification: latestDispatch ? "pending" : "unmatched",
-                ai_summary: latestDispatch ? "Sedang menganalisis..." : "Pesan tidak dikenal (tidak ada histori RFQ)",
-                ai_extracted: null,
-                human_override: false,
-                resolved: false
-            };
-            
-            repliesStore.addReply(replyEntry);
-            
-            if (latestDispatch) {
-                // Jangan ditunggu, biarkan asynchronous
-                processReplyClassification(replyEntry, latestDispatch);
-            }
-        }
-    });
+function normalizePhone(phone) {
+    let formatted = phone.replace(/\D/g, '');
+    if (formatted.startsWith('0')) {
+        formatted = '62' + formatted.substring(1);
+    }
+    return formatted;
 }
 
 async function sendMessage(phone, message) {
@@ -144,46 +65,92 @@ async function sendMessage(phone, message) {
         return true;
     }
 
-    if (connectionState !== 'connected' || !sock) {
-        throw new Error("WhatsApp belum terhubung.");
+    if (!FONNTE_TOKEN) {
+        throw new Error("FONNTE_TOKEN belum diisi di backend/.env");
     }
 
     try {
-        let formattedPhone = phone.replace(/\D/g, '');
-        if (formattedPhone.startsWith('0')) {
-            formattedPhone = '62' + formattedPhone.substring(1);
-        }
-        const jid = `${formattedPhone}@s.whatsapp.net`;
-
-        await sock.sendMessage(jid, { text: message });
-        return true;
+        const res = await axios.post(
+            `${FONNTE_API_URL}/send`,
+            new URLSearchParams({ target: normalizePhone(phone), message }),
+            { headers: { Authorization: FONNTE_TOKEN } }
+        );
+        return !!res.data?.status;
     } catch (err) {
-        console.error(`[WhatsApp] Gagal mengirim pesan ke ${phone}:`, err);
+        console.error(`[Fonnte] Gagal mengirim pesan ke ${phone}:`, err.response?.data || err.message);
         return false;
     }
 }
 
 async function getStatus() {
-    let qrBase64 = null;
-    if (currentQR) {
-        try {
-            qrBase64 = await QRCode.toDataURL(currentQR);
-        } catch (e) {
-            console.error("Gagal convert QR ke base64", e);
-        }
+    if (configService.isDemoMode()) {
+        return { connectionState: 'connected', qr: null, isDemo: true };
     }
-    return {
-        connectionState: configService.isDemoMode() ? 'connected' : connectionState,
-        qr: qrBase64,
-        isDemo: configService.isDemoMode()
-    };
+
+    if (!FONNTE_TOKEN) {
+        return { connectionState: 'disconnected', qr: null, isDemo: false, error: "FONNTE_TOKEN belum diisi di backend/.env" };
+    }
+
+    const now = Date.now();
+    if (cachedStatus && (now - cachedStatusAt) < STATUS_CACHE_MS) {
+        return cachedStatus;
+    }
+
+    try {
+        const res = await axios.post(`${FONNTE_API_URL}/device`, {}, { headers: { Authorization: FONNTE_TOKEN } });
+        const connected = res.data?.device_status === 'connect';
+        cachedStatus = { connectionState: connected ? 'connected' : 'disconnected', qr: null, isDemo: false };
+    } catch (err) {
+        console.error("[Fonnte] Gagal cek status device:", err.response?.data || err.message);
+        cachedStatus = { connectionState: 'disconnected', qr: null, isDemo: false, error: "Gagal menghubungi Fonnte" };
+    }
+    cachedStatusAt = now;
+    return cachedStatus;
 }
 
 function reinitialize() {
-    if (!configService.isDemoMode() && !sock) {
-        initWhatsApp();
-    } else if (configService.isDemoMode()) {
-        connectionState = 'connected';
+    // Tidak ada socket persisten yang perlu di-manage — cukup paksa re-check
+    // status device Fonnte begitu mode demo/live berganti.
+    cachedStatus = null;
+    initWhatsApp();
+}
+
+// Dipanggil dari route webhook saat Fonnte meneruskan balasan WhatsApp yang masuk
+// (device di dashboard Fonnte perlu di-set Webhook URL-nya ke POST /api/wa/webhook).
+async function handleIncomingWebhook(payload) {
+    const senderPhone = (payload?.sender || '').replace(/\D/g, '');
+    const messageText = payload?.message || '';
+    if (!senderPhone || !messageText) return;
+
+    const logs = dispatchLog.getAllLogs().filter(l => {
+        let lp = l.phone.replace(/\D/g, '');
+        if (lp.startsWith('0')) lp = '62' + lp.substring(1);
+        return lp === senderPhone;
+    });
+
+    const latestDispatch = logs.length > 0 ? logs[logs.length - 1] : null;
+
+    const reply_id = crypto.randomUUID();
+    const replyEntry = {
+        reply_id,
+        dispatch_id: latestDispatch ? latestDispatch.dispatch_id : null,
+        supplier_id: latestDispatch ? latestDispatch.supplier_id : null,
+        supplier_name: latestDispatch ? latestDispatch.name : null,
+        phone: senderPhone,
+        message_received: messageText,
+        received_at: new Date().toISOString(),
+        classification: latestDispatch ? "pending" : "unmatched",
+        ai_summary: latestDispatch ? "Sedang menganalisis..." : "Pesan tidak dikenal (tidak ada histori RFQ)",
+        ai_extracted: null,
+        human_override: false,
+        resolved: false
+    };
+
+    repliesStore.addReply(replyEntry);
+
+    if (latestDispatch) {
+        // Jangan ditunggu, biarkan asynchronous
+        processReplyClassification(replyEntry, latestDispatch);
     }
 }
 
@@ -192,5 +159,6 @@ module.exports = {
     sendMessage,
     getStatus,
     processReplyClassification,
-    reinitialize
+    reinitialize,
+    handleIncomingWebhook
 };

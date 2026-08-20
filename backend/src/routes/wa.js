@@ -7,4 +7,15 @@ router.get('/status', async (req, res) => {
     res.json(status);
 });
 
+// Fonnte POST ke sini tiap ada balasan WhatsApp masuk — set URL ini
+// (https://<domain-publik-anda>/api/wa/webhook) di dashboard Fonnte > Device > Webhook URL.
+router.post('/webhook', async (req, res) => {
+    try {
+        await whatsappService.handleIncomingWebhook(req.body);
+    } catch (e) {
+        console.error("Gagal memproses webhook Fonnte", e);
+    }
+    res.sendStatus(200);
+});
+
 module.exports = router;

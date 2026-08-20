@@ -11,7 +11,7 @@ graph TD
     B -->|Intent Parsing & Optimization| C{AI Engine}
     C <-->|Gemini 2.5 Flash| D[Google GenAI]
     
-    B -->|WhatsApp Dispatch & Listener| E[Baileys Socket]
+    B -->|WhatsApp Dispatch & Webhook| E[Fonnte Gateway API]
     E <-->|Real-time Messages| F[WhatsApp Web/Mobile]
     
     B <-->|Mock DB & State| G[(Local Storage / lowdb)]

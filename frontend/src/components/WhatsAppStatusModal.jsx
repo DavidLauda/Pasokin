@@ -61,24 +61,15 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
                 
                 <div className="p-6">
                     {waStatus.connectionState !== 'connected' ? (
-                        <div className="flex flex-col items-center justify-center space-y-4 py-8">
-                            {waStatus.qr ? (
-                                <>
-                                    <p className="text-slate-700 font-medium text-center">Scan QR ini menggunakan WhatsApp di perangkat pengadaan Anda.</p>
-                                    <div className="bg-white p-2 border border-slate-200 rounded-xl shadow-sm flex items-center justify-center">
-                                        <img src={waStatus.qr} alt="WhatsApp QR Code" className="w-64 h-64 object-contain" />
-                                    </div>
-                                    <div className="flex items-center gap-2 text-slate-500 mt-4">
-                                        <Loader2 className="animate-spin h-4 w-4" />
-                                        <span className="text-sm">Menunggu pemindaian...</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center gap-3">
-                                    <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
-                                    <p className="text-slate-500">Menghubungkan ke server WhatsApp...</p>
-                                </div>
-                            )}
+                        <div className="flex flex-col items-center justify-center space-y-3 py-8 text-center">
+                            <XCircle className="h-8 w-8 text-amber-500" />
+                            <p className="text-slate-700 font-semibold">Device WhatsApp (Fonnte) belum terhubung.</p>
+                            <p className="text-sm text-slate-500 max-w-sm">
+                                Tautkan device lewat dashboard{' '}
+                                <a href="https://fonnte.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">fonnte.com</a>
+                                {' '}(scan QR di sana, bukan di aplikasi ini), lalu tutup jendela ini dan coba lagi.
+                            </p>
+                            {waStatus.error && <p className="text-xs text-red-500 bg-red-50 px-3 py-1.5 rounded-lg">{waStatus.error}</p>}
                         </div>
                     ) : (
                         <div className="space-y-4">
