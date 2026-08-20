@@ -126,82 +126,40 @@ ${JSON.stringify(allocations, null, 2)}`;
     }
 }
 
-async function generateWAMessagesForAllocations(allocations, requirement, companyName = "Tim Procurement [Nama Perusahaan Anda]") {
+function generateWAMessage(supplierAllocation, requirement, companyName = "Tim Procurement [Nama Perusahaan Anda]") {
     const targetDate = new Date(requirement.targetDeliveryDate).toLocaleDateString('id-ID', {
         day: 'numeric', month: 'long', year: 'numeric'
     });
-    
-    const getFallback = (a) => {
-        const formattedPrice = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(a.cost / a.qty);
-        return `Halo ${a.name},\n\nPerkenalkan kami dari${companyName}. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:\n\n- Material: ${requirement.materialName}\n- Kuantitas: ${a.qty}${requirement.unit}\n- Target Harga (indikatif): ${formattedPrice}/${requirement.unit}\n- Target Pengiriman: ${targetDate}\n\nMohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?\n\nTerima kasih atas waktu dan kerja samanya.\n\nSalam,\n${companyName}`;
-    };
 
-    console.log("[AI] Generating WA messages in BATCH mode...");
+    const formattedPrice = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(supplierAllocation.cost / supplierAllocation.qty);
 
-    try {
-        const supplierDataList = allocations.map(a => {
-            const formattedPrice = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(a.cost / a.qty);
-            return {
-                supplier_id: a.supplier_id,
-                name: a.name,
-                qty: a.qty,
-                formattedPrice: formattedPrice
-            };
-        });
+    return `Halo ${supplierAllocation.name},
 
-        const prompt = `Anda adalah asisten pengadaan (Pasokin). Buat pesan WhatsApp RFQ (Request for Quotation) B2B yang formal, sopan, dan profesional dalam Bahasa Indonesia untuk BEBERAPA supplier sekaligus.
-Pesan harus ditujukan ke supplier dan menanyakan ketersediaan stok, harga, serta kesanggupan pengiriman.
-JANGAN gunakan markdown formatting tebal/miring, buat sederhana untuk dibaca di WhatsApp.
-Batas panjang: maksimal 120 kata per pesan. Paragraf pendek.
+Perkenalkan kami dari ${companyName}. Kami bermaksud melakukan Request for Quotation (RFQ) untuk kebutuhan material berikut:
 
-Data Pengadaan (berlaku untuk semua):
 - Material: ${requirement.materialName}
+- Kuantitas: ${supplierAllocation.qty} ${requirement.unit}
+- Target Harga (indikatif): ${formattedPrice}/${requirement.unit}
 - Target Pengiriman: ${targetDate}
-- Pengirim: ${companyName}
 
-Data Masing-masing Supplier:
-${JSON.stringify(supplierDataList, null, 2)}
+Mohon konfirmasinya apakah stok tersedia dan apakah harga serta jadwal pengiriman tersebut dapat dipenuhi?
+Reply chat ini dengan menyebutkan jumlah stok yang tersedia, harga yang ditawarkan, dan kapan barang dapat dikirim. 
 
-OUTPUT YANG DIHARAPKAN ADALAH JSON ARRAY dengan format:
-[
-  {
-    "supplier_id": "id-supplier-sesuai-data",
-    "message": "pesan WA untuk supplier tersebut"
-  }
-]`;
+Terima kasih atas waktu dan kerja samanya.
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
+Salam,
+${companyName}`;
+}
 
-        let responseText = response.text;
-        if (responseText.startsWith("\`\`\`json")) {
-            responseText = responseText.replace(/\`\`\`json\n?/, "").replace(/\`\`\`\n?$/, "");
-        }
-        
-        const parsed = JSON.parse(responseText);
-
-        return allocations.map(a => {
-            const found = parsed.find(p => p.supplier_id === a.supplier_id);
-            return {
-                supplier_id: a.supplier_id,
-                phone: a.phone,
-                message: found ? found.message.trim() : getFallback(a)
-            };
-        });
-
-    } catch (e) {
-        console.error("Gemini batch WA message generation failed", e);
-        return allocations.map(a => ({
-            supplier_id: a.supplier_id,
-            phone: a.phone,
-            message: getFallback(a)
-        }));
-    }
+function generateWAMessagesForAllocations(allocations, requirement, companyName) {
+    return allocations.map((allocation) => {
+        const message = generateWAMessage(allocation, requirement, companyName);
+        return {
+            supplier_id: allocation.supplier_id,
+            phone: allocation.phone,
+            message: message
+        };
+    });
 }
 
 async function classifySupplierReply(requirementSnapshot, allocationSnapshot, replyText) {
@@ -313,8 +271,8 @@ PENTING: Output HARUS berupa JSON ARRAY dengan format:
         });
 
         let responseText = response.text;
-        if (responseText.startsWith("\`\`\`json")) {
-            responseText = responseText.replace(/\`\`\`json\n?/, "").replace(/\`\`\`\n?$/, "");
+        if (responseText.startsWith("```json")) {
+            responseText = responseText.replace(/```json\n?/, "").replace(/```\n?$/, "");
         }
         
         const parsed = JSON.parse(responseText);
