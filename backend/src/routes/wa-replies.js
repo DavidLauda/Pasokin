@@ -13,6 +13,9 @@ router.get('/', (req, res) => {
     if (req.query.status) {
         replies = replies.filter(r => r.classification === req.query.status);
     }
+    if (req.query.dispatch_id) {
+        replies = replies.filter(r => r.dispatch_id === req.query.dispatch_id);
+    }
     
     // Attach dispatch snapshots for UI comparison
     const allLogs = dispatchLog.getAllLogs();
@@ -112,6 +115,8 @@ router.post('/simulate', async (req, res) => {
     const { phone, style } = req.body;
     if (!phone || !style) return res.status(400).json({ error: "phone and style required" });
 
+    console.log("Simulate called with phone:", phone, "style:", style);
+
     // Cari log dispatch terbaru untuk nomor ini
     const logs = dispatchLog.getAllLogs().filter(l => {
         let lp = l.phone.replace(/\D/g, '');
@@ -133,6 +138,8 @@ router.post('/simulate', async (req, res) => {
     } else {
         simulatedMessage = "Maaf pak, barang kosong.";
     }
+    
+    console.log("Simulated message:", simulatedMessage);
 
     const reply_id = crypto.randomUUID();
     const replyEntry = {
@@ -151,12 +158,99 @@ router.post('/simulate', async (req, res) => {
     };
 
     repliesStore.addReply(replyEntry);
+    console.log("Reply added to store");
 
     if (latestDispatch) {
+        console.log("Latest dispatch found, calling processReplyClassification");
         await whatsappService.processReplyClassification(replyEntry, latestDispatch);
+        console.log("Classification finished");
     }
 
+    console.log("Returning JSON");
     res.json(repliesStore.getReply(reply_id));
+});
+
+// SIMULATE ALL ENDPOINT (DEMO_MODE ONLY)
+router.post('/simulate-all', async (req, res) => {
+    if (!configService.isDemoMode()) {
+        return res.status(403).json({ error: "Hanya tersedia saat DEMO_MODE=true" });
+    }
+
+    const { dispatch_id } = req.body;
+    if (!dispatch_id) return res.status(400).json({ error: "dispatch_id required" });
+
+    // Cari semua supplier di dispatch ini yang belum punya reply
+    const allLogs = dispatchLog.getAllLogs().filter(l => l.dispatch_id === dispatch_id);
+    if (allLogs.length === 0) return res.status(404).json({ error: "Dispatch not found" });
+
+    const allReplies = repliesStore.getAllReplies();
+    const waitingLogs = allLogs.filter(l => !allReplies.some(r => r.supplier_id === l.supplier_id));
+
+    if (waitingLogs.length === 0) {
+        return res.json({ message: "Tidak ada supplier yang menunggu balasan." });
+    }
+
+    const newReplies = [];
+    const styles = ["confirmed", "negotiate"];
+
+    waitingLogs.forEach((log, index) => {
+        // Variasikan secara selang-seling (atau bisa random)
+        const style = styles[index % 2];
+        
+        let simulatedMessage = "";
+        if (style === "confirmed") {
+            simulatedMessage = `Baik pak, stok ada dan harga sesuai. Bisa kita kirim segera.`;
+        } else {
+            simulatedMessage = `Waduh pak, kalau harga segitu ga dapet sekarang. Harganya naik sedikit. Gimana?`;
+        }
+
+        const reply_id = crypto.randomUUID();
+        const replyEntry = {
+            reply_id,
+            dispatch_id: log.dispatch_id,
+            supplier_id: log.supplier_id,
+            supplier_name: log.name,
+            phone: log.phone,
+            message_received: simulatedMessage,
+            received_at: new Date().toISOString(),
+            classification: "pending",
+            ai_summary: "Sedang menganalisis...",
+            ai_extracted: null,
+            human_override: false,
+            resolved: false
+        };
+
+        repliesStore.addReply(replyEntry);
+        newReplies.push({ replyEntry, log });
+    });
+
+    // Batch classification
+    const requirementSnapshot = allLogs[0].requirement_snapshot; // same for all in dispatch
+    const repliesData = newReplies.map(item => ({
+        reply_id: item.replyEntry.reply_id,
+        supplier_name: item.log.name,
+        qty_requested: item.log.allocation_snapshot.qty,
+        target_price: item.log.allocation_snapshot.price,
+        lead_time_days: item.log.allocation_snapshot.lead_time_days,
+        reply_text: item.replyEntry.message_received
+    }));
+
+    try {
+        const batchResults = await geminiService.batchClassifySupplierReplies(requirementSnapshot, repliesData);
+        
+        // Update database with results
+        batchResults.forEach(result => {
+            repliesStore.updateReply(result.reply_id, {
+                classification: result.classification,
+                ai_summary: result.ai_summary,
+                ai_extracted: result.ai_extracted
+            });
+        });
+    } catch (err) {
+        console.error("Batch classify error inside simulate-all:", err);
+    }
+
+    res.json({ message: "Simulasi batched selesai.", count: newReplies.length });
 });
 
 module.exports = router;

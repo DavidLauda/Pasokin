@@ -117,32 +117,39 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
         setShowSummary(false);
         if (onLoadingStart) onLoadingStart();
         
-        const toastId = toast.loading("Mengoptimasi alokasi ke " + candidates.length + " supplier...");
+        const toastId = toast.loading("Mengirim RFQ ke " + candidates.length + " supplier...");
 
         try {
-            // 1. Optimize
+            // Blast RFQ ke SEMUA candidates yang cocok dengan kriteria
+            const allCandidatesAllocations = candidates.map(c => ({
+                ...c,
+                supplier_id: c.id,
+                qty: parsedRequirement.quantity, // Tanyakan full kuantitas ke semua supplier
+                price: c.price_per_unit || (parsedRequirement.maxBudget / parsedRequirement.quantity)
+            }));
+
+            const dispatchRes = await client.post('/dispatch-wa', {
+                allocations: allCandidatesAllocations,
+                requirement: parsedRequirement,
+                companyName: "PT Pasokin Demo"
+            });
+            
+            toast.loading("Mempersiapkan baseline rekomendasi AI...", { id: toastId });
+
+            // Tetap ambil baseline AI reasoning untuk dashboard
             const optimizeRes = await client.post('/optimize', {
                 requirement: parsedRequirement,
                 candidates: candidates
             });
 
-            toast.loading("Mengirim RFQ ke supplier...", { id: toastId });
-
-            // 2. Dispatch WA
-            const allocations = optimizeRes.data.recommended_allocations;
-            await client.post('/dispatch-wa', {
-                allocations,
-                requirement: parsedRequirement,
-                companyName: "PT Pasokin Demo"
-            });
-
-            toast.success("RFQ berhasil dikirim ke " + allocations.length + " supplier!", { id: toastId });
+            toast.success("RFQ berhasil dikirim ke " + allCandidatesAllocations.length + " supplier!", { id: toastId });
 
             if (onConfirm) {
                 onConfirm({
                     requirement: parsedRequirement,
                     candidates: candidates,
-                    optimization: optimizeRes.data
+                    optimization: optimizeRes.data,
+                    dispatch_id: dispatchRes.data.dispatch_id
                 });
             }
         } catch (err) {
@@ -288,7 +295,7 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
                 </button>
             </form>
 
-            {/* AI Summary Popup */}
+            {/* AI Summary Popup - Editable */}
             {showSummary && parsedRequirement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
@@ -303,34 +310,47 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
                         </div>
                         
                         <div className="p-6 space-y-4">
-                            <p className="text-sm text-slate-500 font-medium">AI telah menganalisis permintaan Anda. Berikut ringkasannya:</p>
+                            <p className="text-sm text-slate-500 font-medium">AI telah menganalisis permintaan Anda. Anda bisa merevisi langsung di bawah ini:</p>
                             
-                            <div className="bg-slate-50 rounded-2xl p-5 space-y-3 border border-slate-100">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Material</span>
-                                    <span className="text-sm font-extrabold text-slate-900">{parsedRequirement.materialName}</span>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Material</label>
+                                    <input type="text" value={parsedRequirement.materialName}
+                                        onChange={(e) => setParsedRequirement(prev => ({...prev, materialName: e.target.value}))}
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                    />
                                 </div>
-                                <div className="border-t border-slate-200"></div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Kuantitas</span>
-                                    <span className="text-sm font-extrabold text-slate-900">{new Intl.NumberFormat('id-ID').format(parsedRequirement.quantity)} {parsedRequirement.unit}</span>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Kuantitas</label>
+                                        <input type="number" value={parsedRequirement.quantity}
+                                            onChange={(e) => setParsedRequirement(prev => ({...prev, quantity: parseFloat(e.target.value) || 0}))}
+                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Satuan</label>
+                                        <select value={parsedRequirement.unit}
+                                            onChange={(e) => setParsedRequirement(prev => ({...prev, unit: e.target.value}))}
+                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900 appearance-none"
+                                        >
+                                            <option value="kg">kg</option><option value="ton">ton</option><option value="batang">batang</option><option value="meter">meter</option><option value="pcs">pcs</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div className="border-t border-slate-200"></div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Budget Maks</span>
-                                    <span className="text-sm font-extrabold text-slate-900">{formatIDR(parsedRequirement.maxBudget)}</span>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Budget Maks (Rp)</label>
+                                    <input type="number" value={parsedRequirement.maxBudget}
+                                        onChange={(e) => setParsedRequirement(prev => ({...prev, maxBudget: parseInt(e.target.value) || 0}))}
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                    />
                                 </div>
-                                <div className="border-t border-slate-200"></div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Target Pengiriman</span>
-                                    <span className="text-sm font-extrabold text-slate-900">{new Date(parsedRequirement.targetDeliveryDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                                </div>
-                                <div className="border-t border-slate-200"></div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Prioritas</span>
-                                    <span className="text-sm font-extrabold text-slate-900">
-                                        {priority === 'cost' ? 'Biaya' : priority === 'speed' ? 'Kecepatan' : 'Seimbang'}
-                                    </span>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Pengiriman</label>
+                                    <input type="date" value={parsedRequirement.targetDeliveryDate?.split('T')[0]}
+                                        onChange={(e) => setParsedRequirement(prev => ({...prev, targetDeliveryDate: new Date(e.target.value).toISOString()}))}
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                    />
                                 </div>
                             </div>
                             
@@ -347,7 +367,7 @@ export default function RequirementForm({ onConfirm, onLoadingStart, onError }) 
                             <button type="button" onClick={() => setShowSummary(false)}
                                 className="flex items-center gap-2 px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
                             >
-                                <Edit3 className="h-4 w-4" /> Revisi
+                                <X className="h-4 w-4" /> Batal
                             </button>
                             <button type="button" onClick={handleConfirm}
                                 className="flex items-center gap-2 px-6 py-2.5 bg-amber-400 hover:bg-amber-500 text-white font-extrabold rounded-xl shadow-lg shadow-amber-500/20 transition-all"

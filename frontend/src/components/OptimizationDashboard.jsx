@@ -14,19 +14,31 @@ export default function OptimizationDashboard({ data, demoMode }) {
 
     useEffect(() => {
         if (data?.optimization?.recommended_allocations) {
-            const initial = data.optimization.recommended_allocations.map(a => ({
-                ...a,
-                percentage: parseFloat(a.percentage) || 0
-            }));
+            const initial = data.optimization.recommended_allocations.map(a => {
+                const qty = a.qty || 0;
+                return {
+                    ...a,
+                    qty: qty,
+                    cost: a.cost !== undefined ? a.cost : Math.round(qty * (a.price_per_unit || 0))
+                };
+            });
             setAllocations(initial);
             setOriginalAllocations(JSON.parse(JSON.stringify(initial)));
+            
+            if (data.isHistorical) {
+                setConfirmedSuppliers(initial.map(a => a.supplier_id || a.phone));
+            }
         }
     }, [data]);
 
     // Poll supplier replies
     const fetchReplies = async () => {
         try {
-            const res = await client.get('/wa-replies');
+            const url = data.dispatch_id ? `/wa-replies?dispatch_id=${data.dispatch_id}` : '/wa-replies';
+            const res = await client.get(url);
+            
+            // Sort to ensure newest replies are on top, but wait, the API might not sort it.
+            // Let's just keep the state update as before.
             setReplies(res.data);
             
             // Auto-add confirmed suppliers
@@ -41,22 +53,27 @@ export default function OptimizationDashboard({ data, demoMode }) {
                 }
             });
         } catch (err) {
-            console.error(err);
+            console.error("Gagal fetch replies", err);
         }
     };
 
     useEffect(() => {
         fetchReplies();
-        const interval = setInterval(fetchReplies, 5000);
+        if (data.isHistorical) return;
+        
+        const interval = setInterval(fetchReplies, 3000);
         return () => clearInterval(interval);
-    }, []);
+    }, [data.dispatch_id, data.isHistorical]);
 
     const handleSimulate = async (style) => {
         if (!allocations || allocations.length === 0) {
             toast.error("Belum ada supplier.");
             return;
         }
-        const supplier = allocations[0];
+        // Find the first supplier that doesn't have a reply yet
+        let supplier = allocations.find(a => !getReplyForAllocation(a));
+        if (!supplier) supplier = allocations[0]; // fallback
+        
         const toastId = toast.loading(`Mensimulasikan balasan (${style})...`);
         try {
             await client.post('/wa-replies/simulate', { phone: supplier.phone, style });
@@ -64,6 +81,21 @@ export default function OptimizationDashboard({ data, demoMode }) {
             fetchReplies();
         } catch (err) {
             toast.error("Gagal simulasi", { id: toastId });
+        }
+    };
+
+    const handleSimulateAll = async () => {
+        if (!data.dispatch_id) {
+            toast.error("Tidak ada dispatch ID.");
+            return;
+        }
+        const toastId = toast.loading("Mensimulasikan dan menganalisis semua balasan sekaligus...");
+        try {
+            await client.post('/wa-replies/simulate-all', { dispatch_id: data.dispatch_id });
+            toast.success("Simulasi batch selesai!", { id: toastId });
+            fetchReplies();
+        } catch (err) {
+            toast.error("Gagal simulasi batch", { id: toastId });
         }
     };
 
@@ -80,30 +112,18 @@ export default function OptimizationDashboard({ data, demoMode }) {
 
     const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
 
-    const handlePercentageChange = (index, newPercentage) => {
-        const val = parseFloat(newPercentage) || 0;
-        let newAlloc = [...allocations];
-        const diff = val - newAlloc[index].percentage;
-        newAlloc[index].percentage = val;
-        const others = newAlloc.filter((_, i) => i !== index);
-        const otherTotal = others.reduce((sum, a) => sum + a.percentage, 0);
-        if (others.length > 0) {
-            others.forEach(a => {
-                if (otherTotal === 0) { a.percentage = (100 - val) / others.length; }
-                else { a.percentage -= (diff * (a.percentage / otherTotal)); }
-            });
-        }
-        const totalQty = data.requirement.quantity;
-        newAlloc = newAlloc.map(a => {
-            const q = totalQty * (a.percentage / 100);
-            return { ...a, percentage: parseFloat(a.percentage.toFixed(1)), qty: Math.round(q), cost: Math.round(q * a.price_per_unit) };
-        });
-        let sum = newAlloc.reduce((acc, curr) => acc + curr.percentage, 0);
-        if (sum !== 100 && others.length > 0) {
-            const firstOther = newAlloc.findIndex((_, i) => i !== index);
-            if (firstOther !== -1) newAlloc[firstOther].percentage = parseFloat((newAlloc[firstOther].percentage + (100 - sum)).toFixed(1));
-        }
-        setAllocations(newAlloc);
+    const handleQtyChange = (supplierId, newQty) => {
+        const val = Math.max(0, parseInt(newQty) || 0);
+        setAllocations(prev => prev.map(a => {
+            if ((a.supplier_id || a.phone) === supplierId) {
+                return { ...a, qty: val, cost: val * a.price_per_unit };
+            }
+            return a;
+        }));
+    };
+
+    const handleDeleteAllocation = (supplierId) => {
+        setAllocations(prev => prev.filter(a => (a.supplier_id || a.phone) !== supplierId));
     };
 
     const resetAllocations = () => setAllocations(JSON.parse(JSON.stringify(originalAllocations)));
@@ -111,7 +131,6 @@ export default function OptimizationDashboard({ data, demoMode }) {
     const handleFinalSubmit = async () => {
         const toastId = toast.loading("Mengirim konfirmasi jual beli ke supplier...");
         try {
-            // Send final PO confirmation to confirmed suppliers
             await client.post('/dispatch-wa', {
                 allocations: allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone)),
                 requirement: data.requirement,
@@ -125,8 +144,18 @@ export default function OptimizationDashboard({ data, demoMode }) {
 
     if (!allocations.length) return null;
 
-    const isSumValid = Math.abs(allocations.reduce((sum, a) => sum + a.percentage, 0) - 100) < 0.2;
-    const hasConfirmedSuppliers = confirmedSuppliers.length > 0;
+    const activeAllocations = allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone));
+    const totalAllocatedQty = activeAllocations.reduce((sum, a) => sum + (a.qty || 0), 0);
+    const requiredQty = data.requirement.quantity;
+    const unallocatedQty = Math.max(0, requiredQty - totalAllocatedQty);
+    const isSumValid = totalAllocatedQty === requiredQty;
+    
+    const hasConfirmedSuppliers = activeAllocations.length > 0;
+
+    const chartData = activeAllocations.map(a => ({ name: a.name, value: a.qty }));
+    if (unallocatedQty > 0) {
+        chartData.push({ name: 'Belum Dialokasikan', value: unallocatedQty, fill: '#e2e8f0' });
+    }
 
     // Map replies to allocation data for richer display
     const getReplyForAllocation = (alloc) => {
@@ -161,24 +190,26 @@ export default function OptimizationDashboard({ data, demoMode }) {
             </div>
 
             {/* Section 2: Allocation Percentage Chart */}
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
-                <h3 className="text-base font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-                    <div className="w-2 h-6 bg-amber-400 rounded-full"></div> Persentase Alokasi
-                </h3>
-                <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie data={allocations} dataKey="percentage" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={100} stroke="none"
-                                label={({ name, percentage }) => `${name.split(' ').slice(0,2).join(' ')} : ${percentage}%`}
-                            >
-                                {allocations.map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip formatter={(value) => `${value}%`} contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
-                            <Legend />
-                        </PieChart>
-                    </ResponsiveContainer>
+            {hasConfirmedSuppliers && (
+                <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                    <h3 className="text-base font-extrabold text-slate-800 mb-6 flex items-center gap-2">
+                        <div className="w-2 h-6 bg-amber-400 rounded-full"></div> Persentase Alokasi
+                    </h3>
+                    <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={100} stroke="none"
+                                    label={({ name, percent }) => `${name.split(' ').slice(0,2).join(' ')} : ${(percent * 100).toFixed(0)}%`}
+                                >
+                                    {chartData.map((entry, index) => <Cell key={index} fill={entry.fill || COLORS[index % COLORS.length]} />)}
+                                </Pie>
+                                <Tooltip formatter={(value) => `${value.toLocaleString()} ${data.requirement.unit}`} contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                                <Legend />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Section 3: Allocation Recommendation Table */}
             <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
@@ -199,40 +230,53 @@ export default function OptimizationDashboard({ data, demoMode }) {
                     </div>
                 ) : (
                     <>
+                        <div className="p-6 pb-2 border-b border-slate-100">
+                            <div className="flex justify-between text-sm font-bold text-slate-700 mb-2">
+                                <span>Status Kuantitas: {totalAllocatedQty.toLocaleString()} / {requiredQty.toLocaleString()} {data.requirement.unit}</span>
+                                <span>{((totalAllocatedQty / requiredQty) * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden flex">
+                                <div className={`h-full ${totalAllocatedQty === requiredQty ? 'bg-emerald-500' : totalAllocatedQty > requiredQty ? 'bg-rose-500' : 'bg-amber-500'} transition-all`} style={{ width: `${Math.min(100, (totalAllocatedQty / requiredQty) * 100)}%` }}></div>
+                            </div>
+                            {totalAllocatedQty > requiredQty && <p className="text-rose-500 text-xs font-bold mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Peringatan: Total alokasi melebihi kebutuhan!</p>}
+                            {totalAllocatedQty < requiredQty && <p className="text-amber-600 text-xs font-bold mt-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Total alokasi masih kurang {unallocatedQty.toLocaleString()} {data.requirement.unit} lagi.</p>}
+                        </div>
                         <div className="overflow-x-auto p-4">
                             <table className="w-full text-sm text-left">
                                 <thead className="text-slate-400 font-extrabold uppercase tracking-widest text-[10px]">
                                     <tr>
                                         <th className="px-6 py-3 font-medium">Supplier & Lokasi</th>
-                                        <th className="px-6 py-3 font-medium">Porsi (%)</th>
                                         <th className="px-6 py-3 font-medium">Kuantitas</th>
                                         <th className="px-6 py-3 font-medium">Biaya</th>
                                         <th className="px-6 py-3 font-medium">Lead Time</th>
+                                        <th className="px-6 py-3 font-medium text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {allocations
-                                        .filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone))
-                                        .map((a, i) => (
-                                        <tr key={a.supplier_id} className="hover:bg-slate-50/50">
+                                    {activeAllocations.map((a, i) => (
+                                        <tr key={a.supplier_id || a.phone} className="hover:bg-slate-50/50">
                                             <td className="px-6 py-4">
                                                 <p className="font-semibold text-slate-800">{a.name}</p>
                                                 <p className="text-xs text-slate-500">{a.location || '-'}</p>
                                             </td>
-                                            <td className="px-6 py-4 w-52">
-                                                <div className="flex items-center gap-3">
-                                                    <input type="range" min="0" max="100" step="0.1"
-                                                        value={a.percentage}
-                                                        onChange={(e) => handlePercentageChange(allocations.indexOf(a), e.target.value)}
-                                                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                                            <td className="px-6 py-4 w-40">
+                                                <div className="relative">
+                                                    <input type="number" min="0" step="1"
+                                                        value={a.qty}
+                                                        onChange={(e) => handleQtyChange(a.supplier_id || a.phone, e.target.value)}
+                                                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                                                     />
-                                                    <span className="w-12 text-right font-medium text-slate-700">{a.percentage}%</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-medium text-slate-700">{a.qty?.toLocaleString()} {data.requirement.unit}</td>
                                             <td className="px-6 py-4 font-medium text-slate-700">{formatIDR(a.cost)}</td>
                                             <td className="px-6 py-4">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">{a.lead_time_days} Hari</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button onClick={() => handleDeleteAllocation(a.supplier_id || a.phone)} className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors">
+                                                    <RotateCcw className="h-4 w-4 hidden" />
+                                                    <span className="text-xs font-bold text-rose-500">Hapus</span>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -243,7 +287,7 @@ export default function OptimizationDashboard({ data, demoMode }) {
                             <button onClick={handleFinalSubmit} disabled={!isSumValid}
                                 className="flex items-center gap-2 px-8 py-3 bg-amber-400 text-white text-sm font-extrabold rounded-full shadow-lg shadow-amber-500/20 hover:bg-amber-500 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             >
-                                <Send className="h-4 w-4" /> Konfirmasi & Kirim RFQ
+                                <Send className="h-4 w-4" /> Konfirmasi & Kirim PO
                             </button>
                         </div>
                     </>
@@ -264,8 +308,9 @@ export default function OptimizationDashboard({ data, demoMode }) {
                     <div className="px-8 py-4 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between">
                         <span className="text-xs font-bold text-amber-600">[DEV] Simulator Balasan</span>
                         <div className="flex gap-2">
-                            <button onClick={() => handleSimulate('confirmed')} className="px-4 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-all">Simulasi: Sesuai</button>
-                            <button onClick={() => handleSimulate('negotiate')} className="px-4 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all">Simulasi: Nego</button>
+                            <button onClick={handleSimulateAll} className="px-4 py-1.5 text-xs font-bold bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-all shadow-sm">Simulasi Semua (Batched)</button>
+                            <button onClick={() => handleSimulate('confirmed')} className="px-4 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-all">Sesuai</button>
+                            <button onClick={() => handleSimulate('negotiate')} className="px-4 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all">Nego</button>
                         </div>
                     </div>
                 )}

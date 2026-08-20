@@ -70,12 +70,22 @@ router.post('/', async (req, res) => {
           }
       }));
 
-      res.json({ results });
+      res.json({ dispatch_id, results });
 
   } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Gagal memproses dispatch" });
   }
+});
+
+router.get('/history', (req, res) => {
+    try {
+        const logs = dispatchLog.getAllLogs();
+        res.json(logs);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Gagal mengambil riwayat transaksi" });
+    }
 });
 
 module.exports = router;
