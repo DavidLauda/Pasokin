@@ -16,11 +16,16 @@ graph TD
     
     B <-->|Mock DB & State| G[(Local Storage / lowdb)]
     
+    %% Triage Service - Gemma 2B + LoRA adapter
+    B <-->|"POST /triage <br/>(DEMO_MODE=false)"| H["Triage Service <br/>(FastAPI, Python)"]
+    H -->|"Gemma 2B-IT <br/>+ LoRA Adapter"| I[("Fine-tuned Model <br/>/adapter")]
+
     %% AI Use Cases
     D -.->|1. Parse Natural Language| B
     D -.->|2. Explain Allocation Strategy| B
     D -.->|3. Draft RFQ Messages| B
-    D -.->|4. Triage & Extract Supplier Replies| B
+    D -.->|"4. Triage Supplier Replies <br/>(DEMO_MODE=true)"| B
+    H -.->|"4. Triage Supplier Replies <br/>(DEMO_MODE=false)"| B
 ```
 
 ## 🤖 How AI is Used in Pasokin
