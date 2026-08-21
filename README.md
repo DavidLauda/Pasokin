@@ -6,7 +6,7 @@ Pasokin is a smart B2B web application designed for manufacturing SMBs in Indone
 
 ```mermaid
 graph TD
-    A[React Frontend <br/>(Vite, Tailwind, Recharts)] <-->|REST API| B(Express Node.js Backend)
+    A["React Frontend <br/>(Vite, Tailwind, Recharts)"] <-->|REST API| B(Express Node.js Backend)
     
     B -->|Intent Parsing & Optimization| C{AI Engine}
     C <-->|Gemini 2.5 Flash| D[Google GenAI]
@@ -77,38 +77,4 @@ Sesuai dengan syarat kompetisi *"Model wajib di fine tune sesuai dengan inovasi 
 
 Dataset `dataset_triage.jsonl` berisi sampel sintetik untuk melatih model Gemini agar lebih akurat mengekstrak dan mengklasifikasikan balasan WhatsApp dari supplier (misal: supplier yang nego harga vs yang setuju 100%) menjadi format JSON terstruktur untuk ditampilkan di Inbox Triage. Script `tune.js` menangani interaksi dengan Google GenAI Tuning API. Pada environment pengembangan, aplikasi menggunakan teknik *In-Context Learning (Prompt Tuning)* pada `gemini-2.5-flash` untuk menjamin reprodusibilitas juri secara instan, namun arsitektur telah mendukung injeksi `GEMINI_TUNED_MODEL_ID` untuk production.
 
----
 
-## 🎤 4-Minute Live Demo Script
-
-**1. Problem Statement (0:00 - 0:30)**
-- "Manufacturing SMBs in Indonesia waste countless hours manually calling dozens of suppliers to fulfill a single large material order, trying to balance price against lead time."
-- "Meet Pasokin: an autonomous procurement agent that finds suppliers, optimizes the split, and negotiates over WhatsApp for you."
-
-**2. Sourcing & Optimization (0:30 - 1:15)**
-- Open the Requirement Form. Point out the `DEMO_MODE` badge at the top right.
-- *Action*: Input "Baja Ringan", 60000 batang, Rp 4.000.000.000, and set the date to tomorrow.
-- Explain: "Instead of manually splitting this massive order, we let our Multi-Criteria Optimizer handle it. I'll drag the priority slider to heavily favor **Kecepatan** (Speed) because we need it tomorrow."
-- Click Submit and point out the loading states as it sources candidates and optimizes.
-
-**3. Human-in-the-Loop Dashboard (1:15 - 2:15)**
-- *Action*: Show the Optimization Dashboard.
-- Explain: "The AI split the order across two suppliers because no single vendor had 60,000 in stock. Notice the highlighted AI Reasoning box explaining *why* it chose this split."
-- *Action*: Drag one of the percentage sliders manually.
-- Explain: "We aren't blindly trusting the AI. As the human operator, I can adjust the allocation live, and you'll see the exact cost and quantity re-calculate instantly."
-
-**4. Dispatching RFQs (2:15 - 2:45)**
-- *Action*: Click "Setujui & Dispatch WhatsApp RFQ".
-- Explain: "Once I approve, Pasokin drafts personalized, professional RFQ messages for each supplier and dispatches them via our WhatsApp integration."
-- Show the modal simulating the successful sends.
-
-**5. Autonomous Triage Inbox (2:45 - 3:40)**
-- *Action*: Close the modal to enter the Supplier Replies Inbox.
-- Explain: "Now we wait for suppliers to reply on WhatsApp. Let's trigger a simulation."
-- *Action*: Click the green **"Simulasi: Sesuai Template"** button. Wait 3 seconds for it to appear.
-- Explain: "A reply just came in. The AI read it, realized they agreed to all terms, and extracted the data. I can expand it to see a side-by-side comparison of what we asked for versus what they agreed to."
-- *Action*: Click the amber **"Simulasi: Perlu Nego"** button.
-- Explain: "Another supplier replied, but they raised the price. The AI instantly caught this and flagged it 'Perlu Negosiasi Manual'. From here, I can click 'Buka di WhatsApp' to take over the negotiation."
-
-**6. Closing Impact (3:40 - 4:00)**
-- "Pasokin transforms procurement from a manual data-entry chore into strategic oversight. We reduce sourcing time from days to seconds while keeping humans in absolute control. Thank you."
