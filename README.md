@@ -6,26 +6,26 @@ Pasokin is a smart B2B web application designed for manufacturing SMBs in Indone
 
 ```mermaid
 graph TD
-    A["React Frontend <br/>(Vite, Tailwind, Recharts)"] <-->|REST API| B(Express Node.js Backend)
-    
+    A["React Frontend\n(Vite, Tailwind, Recharts)"] <-->|REST API| B(Express Node.js Backend)
+
     B -->|Intent Parsing & Optimization| C{AI Engine}
     C <-->|Gemini 2.5 Flash| D[Google GenAI]
-    
+
     B -->|WhatsApp Dispatch & Webhook| E[Fonnte Gateway API]
     E <-->|Real-time Messages| F[WhatsApp Web/Mobile]
-    
+
     B <-->|Mock DB & State| G[(Local Storage / lowdb)]
-    
+
     %% Triage Service - Gemma 2B + LoRA adapter
-    B <-->|"POST /triage <br/>(DEMO_MODE=false)"| H["Triage Service <br/>(FastAPI, Python)"]
-    H -->|"Gemma 2B-IT <br/>+ LoRA Adapter"| I[("Fine-tuned Model <br/>/adapter")]
+    B <-->|POST /triage| H["Triage Service\n(FastAPI, Python)"]
+    H --> I[("Gemma 2B-IT\n+ LoRA Adapter")]
 
     %% AI Use Cases
     D -.->|1. Parse Natural Language| B
     D -.->|2. Explain Allocation Strategy| B
     D -.->|3. Draft RFQ Messages| B
-    D -.->|"4. Triage Supplier Replies <br/>(DEMO_MODE=true)"| B
-    H -.->|"4. Triage Supplier Replies <br/>(DEMO_MODE=false)"| B
+    D -.->|"4. Triage (DEMO_MODE=true)"| B
+    H -.->|"4. Triage (DEMO_MODE=false)"| B
 ```
 
 ## 🤖 How AI is Used in Pasokin
