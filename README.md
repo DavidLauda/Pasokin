@@ -24,8 +24,7 @@ graph TD
     D -.->|1. Parse Natural Language| B
     D -.->|2. Explain Allocation Strategy| B
     D -.->|3. Draft RFQ Messages| B
-    D -.->|"4. Triage (DEMO_MODE=true)"| B
-    H -.->|"4. Triage (DEMO_MODE=false)"| B
+    H -.->|4. Triage Supplier Replies| B
 ```
 
 ## 🤖 How AI is Used in Pasokin
