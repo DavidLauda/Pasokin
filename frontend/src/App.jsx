@@ -97,10 +97,7 @@ function App() {
                 <div className={`w-1.5 h-4 rounded-full ${appState === 'history' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Riwayat Transaksi
             </a>
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-semibold transition-all">
-                <div className="w-1.5 h-4 bg-transparent rounded-full"></div>
-                Laporan & Analitik
-            </a>
+
         </div>
 
         <div className="p-4 mb-4 mx-4 rounded-2xl bg-slate-50 border border-slate-200">
