@@ -26,7 +26,23 @@ function getAllLogs() {
     return logs;
 }
 
+function isFinalSubmitted(dispatchId) {
+    return logs.some(log => log.dispatch_id === dispatchId && log.po_sent === true);
+}
+
+function markFinalSubmitted(dispatchId) {
+    let updated = false;
+    logs = logs.map(log => {
+        if (log.dispatch_id !== dispatchId || log.po_sent === true) return log;
+        updated = true;
+        return { ...log, po_sent: true };
+    });
+    if (updated) saveLogs();
+}
+
 module.exports = {
     addLog,
-    getAllLogs
+    getAllLogs,
+    isFinalSubmitted,
+    markFinalSubmitted
 };

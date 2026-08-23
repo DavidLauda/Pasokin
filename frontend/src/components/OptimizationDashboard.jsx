@@ -6,7 +6,7 @@ import client from '../api/client';
 
 const COLORS = ['#f59e0b', '#8b5cf6', '#0ea5e9', '#10b981', '#ef4444'];
 
-export default function OptimizationDashboard({ data, demoMode }) {
+export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted }) {
     const [allocations, setAllocations] = useState([]);
     const [originalAllocations, setOriginalAllocations] = useState([]);
     const [replies, setReplies] = useState([]);
@@ -14,34 +14,23 @@ export default function OptimizationDashboard({ data, demoMode }) {
 
     const [computedOptimization, setComputedOptimization] = useState(null);
     const [isRanking, setIsRanking] = useState(false);
+    const [isFinalSubmitted, setIsFinalSubmitted] = useState(data.poSent === true);
 
     // Semua supplier yang di-RFQ (blast ke semua yang materialnya cocok, tanpa filter MOQ/lead time).
     // Terpisah dari `allocations`, yang sekarang cuma berisi hasil ranking dari supplier yang SUDAH confirmed.
     const dispatchedSuppliers = (data.candidates || []).map(c => ({ ...c, supplier_id: c.supplier_id || c.id }));
 
-    // Riwayat transaksi lama: alokasi & reasoning sudah final, tinggal ditampilkan apa adanya.
-    useEffect(() => {
-        if (data.isHistorical && data?.optimization?.recommended_allocations) {
-            const initial = data.optimization.recommended_allocations.map(a => {
-                const qty = a.qty || 0;
-                return {
-                    ...a,
-                    qty: qty,
-                    cost: a.cost !== undefined ? a.cost : Math.round(qty * (a.price_per_unit || 0))
-                };
-            });
-            setAllocations(initial);
-            setOriginalAllocations(JSON.parse(JSON.stringify(initial)));
-            setConfirmedSuppliers(initial.map(a => a.supplier_id || a.phone));
-            setComputedOptimization(data.optimization);
-        }
-    }, [data]);
-
-    // Pengadaan baru (live): ranking & alokasi baru dihitung dari supplier yang balasannya
+    // Ranking & alokasi dihitung dari supplier yang balasannya
     // sudah "confirmed", memakai harga/qty/lead time HASIL EKSTRAKSI dari balasan asli mereka
     // (bukan tebakan awal) — dan dihitung ulang tiap kali ada supplier baru yang confirmed.
     useEffect(() => {
-        if (data.isHistorical) return;
+        if (data.isHistorical) {
+            const historicalAllocations = data.optimization?.recommended_allocations || [];
+            setAllocations(historicalAllocations);
+            setOriginalAllocations(JSON.parse(JSON.stringify(historicalAllocations)));
+            setComputedOptimization(data.optimization || null);
+            return;
+        }
 
         if (confirmedSuppliers.length === 0) {
             setAllocations([]);
@@ -90,7 +79,7 @@ export default function OptimizationDashboard({ data, demoMode }) {
             .catch(err => console.error("Gagal menghitung ranking dari balasan supplier", err))
             .finally(() => setIsRanking(false));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [confirmedSuppliers.join(','), data.isHistorical]);
+    }, [confirmedSuppliers.join(',')]);
 
     // Poll supplier replies
     const fetchReplies = async () => {
@@ -104,7 +93,7 @@ export default function OptimizationDashboard({ data, demoMode }) {
             
             // Auto-add confirmed suppliers
             res.data.forEach(r => {
-                if (r.classification === 'confirmed' && !r.resolved) {
+                if (r.classification === 'confirmed') {
                     setConfirmedSuppliers(prev => {
                         if (!prev.includes(r.supplier_id || r.phone)) {
                             return [...prev, r.supplier_id || r.phone];
@@ -120,11 +109,9 @@ export default function OptimizationDashboard({ data, demoMode }) {
 
     useEffect(() => {
         fetchReplies();
-        if (data.isHistorical) return;
-        
         const interval = setInterval(fetchReplies, 3000);
         return () => clearInterval(interval);
-    }, [data.dispatch_id, data.isHistorical]);
+    }, [data.dispatch_id]);
 
     const handleSimulate = async (style) => {
         if (!dispatchedSuppliers || dispatchedSuppliers.length === 0) {
@@ -190,25 +177,34 @@ export default function OptimizationDashboard({ data, demoMode }) {
     const resetAllocations = () => setAllocations(JSON.parse(JSON.stringify(originalAllocations)));
 
     const handleFinalSubmit = async () => {
+        if (isFinalSubmitted || !isSumValid) return;
+        setIsFinalSubmitted(true);
         const toastId = toast.loading("Mengirim keputusan akhir ke supplier (PO untuk yang menang, penolakan untuk yang tidak terpilih)...");
         try {
             const res = await client.post('/dispatch-wa', {
-                allocations: allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone)),
+                allocations: data.isHistorical
+                    ? allocations
+                    : allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone)),
                 requirement: data.requirement,
+                dispatch_id: data.dispatch_id,
                 companyName: "PT Pasokin Demo",
                 type: "final"
             });
             const wonCount = res.data.results.filter(r => r.decision === 'po_confirmed').length;
             const rejectedCount = res.data.results.filter(r => r.decision === 'rejected').length;
             toast.success(`PO terkirim ke ${wonCount} supplier, penolakan terkirim ke ${rejectedCount} supplier.`, { id: toastId });
+            onFinalSubmitted?.();
         } catch (err) {
+            setIsFinalSubmitted(false);
             toast.error("Gagal mengirim keputusan akhir", { id: toastId });
         }
     };
 
     if (!dispatchedSuppliers.length) return null;
 
-    const activeAllocations = allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone));
+    const activeAllocations = data.isHistorical
+        ? allocations
+        : allocations.filter(a => confirmedSuppliers.includes(a.supplier_id || a.phone));
     const totalAllocatedQty = activeAllocations.reduce((sum, a) => sum + (a.qty || 0), 0);
     const requiredQty = data.requirement.quantity;
     const unallocatedQty = Math.max(0, requiredQty - totalAllocatedQty);
@@ -352,10 +348,10 @@ export default function OptimizationDashboard({ data, demoMode }) {
                             </table>
                         </div>
                         <div className="p-6 border-t border-slate-100 flex justify-end">
-                            <button onClick={handleFinalSubmit} disabled={!isSumValid}
+                            <button onClick={handleFinalSubmit} disabled={!isSumValid || isFinalSubmitted}
                                 className="flex items-center gap-2 px-8 py-3 bg-amber-400 text-white text-sm font-extrabold rounded-full shadow-lg shadow-amber-500/20 hover:bg-amber-500 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             >
-                                <Send className="h-4 w-4" /> Konfirmasi & Kirim PO
+                                <Send className="h-4 w-4" /> {isFinalSubmitted ? 'PO Sudah Dikirim' : 'Konfirmasi & Kirim PO'}
                             </button>
                         </div>
                     </>

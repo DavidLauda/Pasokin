@@ -73,7 +73,7 @@ async function sendMessage(phone, message) {
         const res = await axios.post(
             `${FONNTE_API_URL}/send`,
             new URLSearchParams({ target: normalizePhone(phone), message }),
-            { headers: { Authorization: FONNTE_TOKEN } }
+            { headers: { Authorization: FONNTE_TOKEN }, timeout: 60000 }
         );
         return !!res.data?.status;
     } catch (err) {

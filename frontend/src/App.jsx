@@ -10,6 +10,7 @@ import client from './api/client';
 function App() {
   const [appState, setAppState] = useState('input'); // 'input' | 'dashboard' | 'suppliers' | 'history'
   const [optimizationResult, setOptimizationResult] = useState(null);
+    const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [health, setHealth] = useState({ status: 'unknown', demoMode: false });
 
   useEffect(() => {
@@ -20,37 +21,57 @@ function App() {
 
   const handleConfirm = (data) => {
     setOptimizationResult(data);
-    setAppState('dashboard');
+        setHistoryRefreshKey(key => key + 1);
+        setAppState('dashboard');
   };
 
   const handleOpenHistoryDetail = (historyItem) => {
-    // Reconstruct the optimizationResult from history logs
+    let remainingQty = historyItem.requirement.quantity > 0 ? historyItem.requirement.quantity : 0;
+    const historicalAllocations = historyItem.suppliers.map(supplier => {
+        const snapshot = supplier.allocation_snapshot || {};
+        const capacity = Number(snapshot.max_capacity_qty ?? historyItem.requirement.quantity);
+        const qty = Number(snapshot.allocated_qty ?? Math.min(Math.max(0, capacity), remainingQty));
+        remainingQty = Math.max(0, remainingQty - qty);
+
+        return {
+            ...snapshot,
+            supplier_id: supplier.supplier_id,
+            name: supplier.name,
+            phone: supplier.phone,
+            price_per_unit: snapshot.price,
+            qty,
+            cost: qty * (snapshot.price || 0)
+        };
+    });
+
     const mockOptimizationResult = {
         requirement: historyItem.requirement,
+        candidates: historyItem.suppliers.map(s => ({
+            ...s.allocation_snapshot,
+            supplier_id: s.supplier_id,
+            name: s.name,
+            phone: s.phone,
+            price_per_unit: s.allocation_snapshot.price
+        })),
         optimization: {
-            recommended_allocations: historyItem.suppliers.map(s => ({
-                ...s.allocation_snapshot,
-                supplier_id: s.supplier_id,
-                name: s.name,
-                phone: s.phone,
-                price_per_unit: s.allocation_snapshot.price
-            })),
-            ai_reasoning: "Transaksi ini direkonstruksi dari riwayat.",
+            recommended_allocations: historicalAllocations,
+            ai_reasoning: null,
             savings_estimate_percent: 0,
-            candidates: historyItem.suppliers.map(s => ({
-                ...s.allocation_snapshot,
-                supplier_id: s.supplier_id,
-                name: s.name,
-                phone: s.phone,
-                price_per_unit: s.allocation_snapshot.price
-            }))
+            candidates: historicalAllocations
         },
         dispatch_id: historyItem.dispatch_id,
+        poSent: historyItem.po_sent,
         isHistorical: true
     };
     setOptimizationResult(mockOptimizationResult);
     setAppState('dashboard');
   };
+
+    const handleFinalSubmitted = () => {
+        setHistoryRefreshKey(key => key + 1);
+        setOptimizationResult(null);
+        setAppState('history');
+    };
 
   const toggleDemoMode = async () => {
     const newMode = !health.demoMode;
@@ -85,7 +106,15 @@ function App() {
 
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
             <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input'); setOptimizationResult(null);}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['input', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+            <a href="#" onClick={(e) => {
+                e.preventDefault();
+                if (optimizationResult && optimizationResult.poSent !== true) {
+                    setAppState('dashboard');
+                } else {
+                    setAppState('input');
+                    setOptimizationResult(null);
+                }
+            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['input', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                 <div className={`w-1.5 h-4 rounded-full ${['input', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
@@ -162,6 +191,7 @@ function App() {
                         <OptimizationDashboard 
                             data={optimizationResult}
                             demoMode={health.demoMode}
+                            onFinalSubmitted={handleFinalSubmitted}
                         />
                     </div>
                 )}
@@ -173,7 +203,10 @@ function App() {
 
                 {/* Transaction History */}
                 {appState === 'history' && (
-                    <TransactionHistory onOpenDashboard={handleOpenHistoryDetail} />
+                    <TransactionHistory
+                        refreshKey={historyRefreshKey}
+                        onOpenDashboard={handleOpenHistoryDetail}
+                    />
                 )}
             </div>
         </div>

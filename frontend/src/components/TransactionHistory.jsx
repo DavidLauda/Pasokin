@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { History, Package, Calendar, Search, ArrowRight, ExternalLink } from 'lucide-react';
 import client from '../api/client';
 
-export default function TransactionHistory({ onOpenDashboard }) {
+export default function TransactionHistory({ onOpenDashboard, refreshKey }) {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -16,16 +16,20 @@ export default function TransactionHistory({ onOpenDashboard }) {
                         acc[log.dispatch_id] = {
                             dispatch_id: log.dispatch_id,
                             dispatched_at: log.dispatched_at,
+                            po_sent: log.po_sent === true,
                             requirement: log.requirement_snapshot,
                             suppliers: [],
                         };
                     }
+                    acc[log.dispatch_id].po_sent = acc[log.dispatch_id].po_sent || log.po_sent === true;
                     acc[log.dispatch_id].suppliers.push(log);
                     return acc;
                 }, {});
                 
                 // Urutkan dari terbaru
-                const sorted = Object.values(grouped).sort((a, b) => new Date(b.dispatched_at) - new Date(a.dispatched_at));
+                const sorted = Object.values(grouped)
+                    .filter(transaction => transaction.po_sent)
+                    .sort((a, b) => new Date(b.dispatched_at) - new Date(a.dispatched_at));
                 setHistory(sorted);
                 setLoading(false);
             })
@@ -33,7 +37,7 @@ export default function TransactionHistory({ onOpenDashboard }) {
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+    }, [refreshKey]);
 
     const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
     const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -90,28 +94,42 @@ export default function TransactionHistory({ onOpenDashboard }) {
                                     <th className="px-6 py-4">Kebutuhan Utama</th>
                                     <th className="px-6 py-4">Supplier Dikontak</th>
                                     <th className="px-6 py-4">Total Nilai (Estimasi)</th>
+                                    <th className="px-6 py-4">Status</th>
                                     <th className="px-6 py-4 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filteredHistory.map((h) => {
-                                    const totalCost = h.suppliers.reduce((sum, s) => sum + (s.allocation_snapshot?.qty * s.allocation_snapshot?.price || 0), 0);
-                                    
+                                    const totalCost = h.suppliers.reduce((sum, supplier) => (
+                                        sum + ((supplier.allocation_snapshot?.allocated_qty ?? supplier.allocation_snapshot?.qty) * supplier.allocation_snapshot?.price || 0)
+                                    ), 0);
+                                    const sentCount = h.suppliers.filter(supplier => supplier.status === 'sent').length;
+
                                     return (
-                                        <tr key={h.dispatch_id} className="hover:bg-slate-50/50 transition-colors">
+                                        <tr
+                                            key={h.dispatch_id}
+                                            onClick={() => onOpenDashboard(h)}
+                                            className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                                        >
                                             <td className="px-6 py-4">
-                                                <div className="font-mono text-xs font-bold text-slate-900 mb-1">#{h.dispatch_id.substring(0,8)}</div>
-                                                <div className="text-xs text-slate-500 flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatDate(h.dispatched_at)}</div>
+                                                <div className="font-mono text-xs font-bold text-slate-900 mb-1">#{h.dispatch_id.substring(0, 8)}</div>
+                                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" /> {formatDate(h.dispatched_at)}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="font-bold text-slate-900 flex items-center gap-1.5"><Package className="h-4 w-4 text-slate-400" /> {h.requirement.materialName}</div>
-                                                <div className="text-xs text-slate-500 mt-1">{h.requirement.quantity} {h.requirement.unit} • Maks {formatIDR(h.requirement.maxBudget)}</div>
+                                                <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                                    <Package className="h-4 w-4 text-slate-400" /> {h.requirement.materialName}
+                                                </div>
+                                                <div className="text-xs text-slate-500 mt-1">
+                                                    {h.requirement.quantity} {h.requirement.unit} • Maks {formatIDR(h.requirement.maxBudget)}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex -space-x-2">
-                                                    {h.suppliers.slice(0,3).map((s, i) => (
-                                                        <div key={i} className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-sm" title={s.name}>
-                                                            {s.name?.substring(0,2).toUpperCase()}
+                                                    {h.suppliers.slice(0, 3).map((supplier, index) => (
+                                                        <div key={index} className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-sm" title={supplier.name}>
+                                                            {supplier.name?.substring(0, 2).toUpperCase()}
                                                         </div>
                                                     ))}
                                                     {h.suppliers.length > 3 && (
@@ -121,13 +139,20 @@ export default function TransactionHistory({ onOpenDashboard }) {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-bold text-slate-700">
-                                                {formatIDR(totalCost)}
+                                            <td className="px-6 py-4 font-bold text-slate-700">{formatIDR(totalCost)}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${sentCount === h.suppliers.length ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                                                    {h.po_sent ? 'Terkonfirmasi' : `${sentCount}/${h.suppliers.length} terkirim`}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button 
-                                                    onClick={() => onOpenDashboard(h)}
-                                                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                                                <button
+                                                    type="button"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        onOpenDashboard(h);
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
                                                 >
                                                     Detail <ArrowRight className="h-3.5 w-3.5" />
                                                 </button>

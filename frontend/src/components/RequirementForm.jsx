@@ -164,16 +164,16 @@ export default function RequirementForm({ onConfirm }) {
             toast.success(`RFQ berhasil dikirim ke ${successCount} supplier!`);
         }
 
-        // Ranking & alokasi TIDAK dihitung di sini — baru dihitung setelah ada
-        // balasan supplier yang confirmed (lihat OptimizationDashboard), karena
-        // hanya supplier sendiri yang tahu pasti apa yang sanggup mereka penuhi.
-        if (onConfirm) {
-            onConfirm({
-                requirement: parsedRequirement,
-                candidates: candidates,
-                dispatch_id: dispatchResult?.dispatch_id
-            });
-        }
+        onConfirm({
+            requirement: parsedRequirement,
+            candidates,
+            optimization: {
+                recommended_allocations: pendingAllocations,
+                candidates: pendingAllocations
+            },
+            dispatch_id: dispatchResult.dispatch_id
+        });
+
     };
 
     return (

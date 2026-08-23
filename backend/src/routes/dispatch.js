@@ -17,6 +17,10 @@ router.post('/', async (req, res) => {
 
       const isFinalDecision = type === 'final';
 
+      if (isFinalDecision && dispatchLog.isFinalSubmitted(req.body.dispatch_id)) {
+          return res.status(409).json({ error: "PO untuk transaksi ini sudah pernah dikirim" });
+      }
+
       // Tahap RFQ awal: satu pesan RFQ per supplier, dicatat ke dispatchLog supaya
       // balasan WhatsApp mereka nanti bisa dicocokkan ke RFQ ini.
       // Tahap final ("Konfirmasi & Kirim PO"): tiap supplier confirmed dapat pesan PO
@@ -28,6 +32,17 @@ router.post('/', async (req, res) => {
 
       const dispatch_id = crypto.randomUUID();
       const results = [];
+      let remainingAllocationQty = requirement.quantity > 0 ? requirement.quantity : 0;
+      const allocatedQtyBySupplier = new Map();
+
+      if (!isFinalDecision) {
+          for (const allocation of allocations) {
+              const capacity = Number(allocation.max_capacity_qty ?? requirement.quantity);
+              const allocatedQty = Math.min(Math.max(0, capacity), remainingAllocationQty);
+              allocatedQtyBySupplier.set(allocation.supplier_id, allocatedQty);
+              remainingAllocationQty -= allocatedQty;
+          }
+      }
 
       // Kirim satu-satu dengan jeda (bukan blast paralel sekaligus) — blast instan ke
       // banyak nomor adalah pola yang dideteksi sistem anti-spam WhatsApp dan berisiko
@@ -54,6 +69,8 @@ router.post('/', async (req, res) => {
                       },
                       allocation_snapshot: {
                           qty: allocRef?.qty,
+                          allocated_qty: allocatedQtyBySupplier.get(msgData.supplier_id) ?? allocRef?.qty,
+                          max_capacity_qty: allocRef?.max_capacity_qty,
                           price: allocRef?.price_per_unit || (allocRef?.cost / allocRef?.qty),
                           lead_time_days: allocRef?.lead_time_days
                       },
@@ -85,6 +102,10 @@ router.post('/', async (req, res) => {
           if (msgData !== messagesToDispatch[messagesToDispatch.length - 1]) {
               await sleep(1500 + Math.random() * 1000);
           }
+      }
+
+      if (isFinalDecision && req.body.dispatch_id) {
+          dispatchLog.markFinalSubmitted(req.body.dispatch_id);
       }
 
       res.json({ dispatch_id, results });
