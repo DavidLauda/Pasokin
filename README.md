@@ -38,9 +38,10 @@ Pasokin utilizes AI as a core architectural driver, moving beyond a simple chatb
 ## 🚀 Setup & Run Instructions
 
 ### Prasyarat (Prerequisites)
-- Docker & Docker Compose (Direkomendasikan untuk penjurian)
-- Node.js (v18+) jika ingin menjalankan tanpa Docker
-- Google Gemini API Key
+- Docker Desktop dan Docker Compose (cara termudah untuk menjalankan seluruh stack)
+- Google Gemini API Key untuk parsing kebutuhan dan reasoning optimasi
+- Fonnte token hanya untuk WhatsApp live
+- Hugging Face token hanya untuk menjalankan Gemma asli (`DEMO_MODE=false`)
 
 ### Instalasi & Menjalankan Aplikasi (Sesuai Ketentuan COMPFEST)
 
@@ -54,31 +55,34 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
 2. **Konfigurasi Environment:**
    ```bash
-   cd backend
    cp .env.example .env
    ```
-   Buka `backend/.env` dan masukkan API Key Gemini Anda:
+   Buka `.env` di folder root dan isi API key bila fitur Gemini ingin digunakan:
    ```env
    GEMINI_API_KEY="your-gemini-api-key"
+   FONNTE_TOKEN=""
    PORT=4000
    DEMO_MODE=true
    ```
    *Catatan: `DEMO_MODE=true` mensimulasikan koneksi WhatsApp dan memberikan delay artifisial yang mulus untuk presentasi live tanpa perlu pemindaian QR manual. Dalam mode ini, service `triage-service` juga otomatis melewati loading model Gemma 2B asli (yang gated dan butuh HuggingFace token) dan cukup idle, karena backend tidak memanggilnya sama sekali saat DEMO_MODE aktif.*
 
-   *Jika ingin menjalankan triage service dengan model Gemma 2B + adapter yang sesungguhnya (`DEMO_MODE=false`), siapkan `HF_TOKEN` (HuggingFace access token dengan akses ke `google/gemma-2b-it`) di environment host sebelum `docker-compose up`, misalnya `HF_TOKEN=hf_xxx docker-compose up --build`.*
+   *Jika ingin menjalankan triage service dengan model Gemma 2B + adapter yang sesungguhnya (`DEMO_MODE=false`), siapkan `HF_TOKEN` (HuggingFace access token dengan akses ke `google/gemma-2b-it`) di environment host sebelum `docker compose up`, misalnya `HF_TOKEN=hf_xxx DEMO_MODE=false docker compose up --build`.*
 
 3. **Jalankan via Docker Compose:**
    Kembali ke root folder `Pasokin` dan jalankan perintah:
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
    - Frontend dapat diakses di: `http://localhost:5173`
    - Backend API berjalan di: `http://localhost:4000`
+   - Health check: `http://localhost:4000/api/health`
+
+   Mode default adalah demo, jadi Gemma tidak di-download atau dimuat. Untuk mode live WhatsApp, isi `FONNTE_TOKEN` dan atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend. Untuk Gemma asli, jalankan dengan `DEMO_MODE=false` dan `HF_TOKEN`.
 
 ### Model Fine-Tuning (Kepatuhan Kompetisi)
 
 Sesuai dengan syarat kompetisi *"Model wajib di fine tune sesuai dengan inovasi fitur per tim"*, kami telah menyiapkan dataset dan pipeline fine-tuning di dalam direktori `/model-tuning`. 
 
-Dataset `dataset_triage.jsonl` berisi sampel sintetik untuk melatih model Gemini agar lebih akurat mengekstrak dan mengklasifikasikan balasan WhatsApp dari supplier (misal: supplier yang nego harga vs yang setuju 100%) menjadi format JSON terstruktur untuk ditampilkan di Inbox Triage. Script `tune.js` menangani interaksi dengan Google GenAI Tuning API. Pada environment pengembangan, aplikasi menggunakan teknik *In-Context Learning (Prompt Tuning)* pada `gemini-2.5-flash` untuk menjamin reprodusibilitas juri secara instan, namun arsitektur telah mendukung injeksi `GEMINI_TUNED_MODEL_ID` untuk production.
+Dataset `dataset_triage.jsonl` digunakan untuk fine-tuning model triage Gemma 2B dengan adapter LoRA. Adapter hasil training disimpan di `/triage-service/adapter` dan dipakai oleh service FastAPI saat `DEMO_MODE=false`. Pada `DEMO_MODE=true`, service triage tidak memuat Gemma; backend memakai heuristik demo agar aplikasi dapat dijalankan tanpa download model besar.
 
 

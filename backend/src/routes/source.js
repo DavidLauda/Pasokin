@@ -5,7 +5,12 @@ const geminiService = require('../services/geminiService');
 
 router.post('/', async (req, res) => {
   try {
-      let requirement = req.body;
+      let requirement = req.body || {};
+
+      if ((!requirement.rawInput && typeof requirement.materialName !== 'string') ||
+          (!requirement.rawInput && !requirement.materialName.trim())) {
+          return res.status(400).json({ error: "materialName atau rawInput wajib diisi" });
+      }
       
       // Jika request berupa rawInput string (natural language), parse dengan Gemini AI
       if (req.body.rawInput) {
@@ -16,7 +21,7 @@ router.post('/', async (req, res) => {
           }
       }
       
-      const { materialName } = requirement;
+    const { materialName } = requirement;
 
       // 1. Ambil kandidat supplier berdasarkan kategori material (fuzzy match)
       // Ini memastikan kita hanya membandingkan supplier yang relevan dengan jenis bahan baku.

@@ -10,8 +10,10 @@ services:
       - "4000:4000"
     environment:
       - PORT=4000
-      - DEMO_MODE=true
+      - DEMO_MODE=${DEMO_MODE:-true}
       - TRIAGE_SERVICE_URL=http://triage-service:8001
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - FONNTE_TOKEN=${FONNTE_TOKEN:-}
     depends_on:
       - triage-service
     # Install dependencies only if node_modules doesn't exist to speed up restarts
@@ -38,7 +40,7 @@ services:
       - BASE_MODEL_ID=google/gemma-2b-it
       - ADAPTER_PATH=/app/adapter
       - USE_4BIT=auto
-      - DEMO_MODE=true
+      - DEMO_MODE=${DEMO_MODE:-true}
       # Hanya dibutuhkan kalau DEMO_MODE=false (memuat model Gemma asli dari HuggingFace,
       # yang gated dan butuh token). Set di shell host sebelum `docker-compose up`, mis:
       # HF_TOKEN=hf_xxx docker-compose up --build

@@ -50,7 +50,7 @@ async function initWhatsApp() {
 }
 
 function normalizePhone(phone) {
-    let formatted = phone.replace(/\D/g, '');
+    let formatted = String(phone || '').replace(/\D/g, '');
     if (formatted.startsWith('0')) {
         formatted = '62' + formatted.substring(1);
     }
@@ -118,14 +118,12 @@ function reinitialize() {
 // Dipanggil dari route webhook saat Fonnte meneruskan balasan WhatsApp yang masuk
 // (device di dashboard Fonnte perlu di-set Webhook URL-nya ke POST /api/wa/webhook).
 async function handleIncomingWebhook(payload) {
-    const senderPhone = (payload?.sender || '').replace(/\D/g, '');
-    const messageText = payload?.message || '';
+    const senderPhone = normalizePhone(payload?.sender);
+    const messageText = String(payload?.message || '').trim();
     if (!senderPhone || !messageText) return;
 
     const logs = dispatchLog.getAllLogs().filter(l => {
-        let lp = l.phone.replace(/\D/g, '');
-        if (lp.startsWith('0')) lp = '62' + lp.substring(1);
-        return lp === senderPhone;
+        return normalizePhone(l.phone) === senderPhone;
     });
 
     const latestDispatch = logs.length > 0 ? logs[logs.length - 1] : null;

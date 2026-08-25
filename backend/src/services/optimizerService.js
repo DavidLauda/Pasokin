@@ -3,6 +3,8 @@
 function optimizeAllocation(requirement, candidates) {
     if (!candidates || candidates.length === 0) return null;
 
+    const rangeScore = (value, min, max) => max === min ? 1 : (value - min) / (max - min);
+
     // 1. TAHAP PERTAMA: Ambil Bobot Prioritas dari Request
     // Dikonversi menjadi proporsi (sum = 1) untuk perhitungan Weighted Sum Model
     let wCost = (requirement.priority?.cost || 40) / 100;
@@ -24,22 +26,22 @@ function optimizeAllocation(requirement, candidates) {
     const risks = candidates.map(c => c.reliability_score);
 
     const minCost = Math.min(...costs);
-    const maxCost = Math.max(...costs) || minCost + 1; // hindari pembagian nol
+    const maxCost = Math.max(...costs);
     const minSpeed = Math.min(...speeds);
-    const maxSpeed = Math.max(...speeds) || minSpeed + 1;
+    const maxSpeed = Math.max(...speeds);
     const minRisk = Math.min(...risks);
-    const maxRisk = Math.max(...risks) || minRisk + 0.1;
+    const maxRisk = Math.max(...risks);
 
     // 3. TAHAP KETIGA: Perhitungan Skor (Scoring)
     const scoredCandidates = candidates.map(c => {
         // Normalisasi Biaya: Lebih murah -> Lebih mendekati 1
-        const normCost = 1 - ((c.price_per_unit - minCost) / (maxCost - minCost));
+        const normCost = 1 - rangeScore(c.price_per_unit, minCost, maxCost);
         
         // Normalisasi Kecepatan: Lebih cepat (lead_time kecil) -> Lebih mendekati 1
-        const normSpeed = 1 - ((c.lead_time_days - minSpeed) / (maxSpeed - minSpeed));
+        const normSpeed = 1 - rangeScore(c.lead_time_days, minSpeed, maxSpeed);
         
         // Normalisasi Risiko: Reliabilitas lebih tinggi -> Lebih mendekati 1
-        const normRisk = (c.reliability_score - minRisk) / (maxRisk - minRisk);
+        const normRisk = rangeScore(c.reliability_score, minRisk, maxRisk);
 
         // Skor akhir: Penjumlahan terbobot (Weighted Sum) dari seluruh parameter
         const score = (wCost * normCost) + (wSpeed * normSpeed) + (wRisk * normRisk);
