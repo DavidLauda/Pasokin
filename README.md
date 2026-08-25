@@ -60,13 +60,16 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    Buka `.env` di folder root dan isi API key bila fitur Gemini ingin digunakan:
    ```env
    GEMINI_API_KEY="your-gemini-api-key"
-   FONNTE_TOKEN=""
+   HF_TOKEN="your-huggingface-token"
+   FONNTE_TOKEN="your-fonnte-token"
    PORT=4000
-   DEMO_MODE=true
+   DEMO_MODE=false
    ```
-   *Catatan: `DEMO_MODE=true` mensimulasikan koneksi WhatsApp dan memberikan delay artifisial yang mulus untuk presentasi live tanpa perlu pemindaian QR manual. Dalam mode ini, service `triage-service` juga otomatis melewati loading model Gemma 2B asli (yang gated dan butuh HuggingFace token) dan cukup idle, karena backend tidak memanggilnya sama sekali saat DEMO_MODE aktif.*
+   Pastikan akun Hugging Face sudah mendapat akses ke `google/gemma-2b-it` dan `HF_TOKEN` memiliki izin baca. Pastikan nomor WhatsApp juga sudah terhubung di dashboard Fonnte. Token Fonnte digunakan untuk mengirim pesan dan menerima balasan melalui webhook.
 
-   *Jika ingin menjalankan triage service dengan model Gemma 2B + adapter yang sesungguhnya (`DEMO_MODE=false`), siapkan `HF_TOKEN` (HuggingFace access token dengan akses ke `google/gemma-2b-it`) di environment host sebelum `docker compose up`, misalnya `HF_TOKEN=hf_xxx DEMO_MODE=false docker compose up --build`.*
+   `HF_TOKEN` harus memiliki akses ke model gated `google/gemma-2b-it`. Docker Compose akan meneruskan token tersebut ke `triage-service` saat container dijalankan.
+
+   Untuk presentasi tanpa koneksi WhatsApp atau download model Gemma, gunakan `DEMO_MODE=true`. Mode ini mensimulasikan koneksi WhatsApp dan melewati loading model Gemma 2B.
 
 3. **Jalankan via Docker Compose:**
    Kembali ke root folder `Pasokin` dan jalankan perintah:
@@ -77,7 +80,19 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    - Backend API berjalan di: `http://localhost:4000`
    - Health check: `http://localhost:4000/api/health`
 
-   Mode default adalah demo, jadi Gemma tidak di-download atau dimuat. Untuk mode live WhatsApp, isi `FONNTE_TOKEN` dan atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend. Untuk Gemma asli, jalankan dengan `DEMO_MODE=false` dan `HF_TOKEN`.
+   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp dan triage service Gemma. Atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend yang dapat diakses Fonnte, bukan `localhost`.
+
+### Proses Loading Model Triage
+
+Saat `DEMO_MODE=false`, container `triage-service` melakukan langkah berikut ketika startup:
+1. Mengunduh atau membaca tokenizer dan base model `google/gemma-2b-it` dari Hugging Face menggunakan `HF_TOKEN`.
+2. Memuat model Gemma 2B ke CPU atau GPU yang tersedia.
+3. Memasang adapter LoRA hasil fine-tuning dari folder `/app/adapter`.
+4. Membuka endpoint `POST /triage` setelah model dan adapter selesai dimuat.
+
+Loading pertama dapat memerlukan waktu dan ruang disk yang besar karena base model Gemma belum tersedia di cache container. Backend dapat mengembalikan status `503` selama proses loading berlangsung. Konfigurasi Docker saat ini menggunakan paket PyTorch CPU; pada mesin tanpa GPU, inference tetap berjalan tetapi respons triage dapat lebih lambat. Dukungan GPU memerlukan image dan runtime Docker yang dikonfigurasi khusus untuk CUDA.
+
+Jika backend dijalankan di luar Docker dari folder `backend`, isi `TRIAGE_SERVICE_URL=http://localhost:8001` di `backend/.env`. Docker Compose mengatur alamat service ini secara otomatis ke `http://triage-service:8001`.
 
 ### Model Fine-Tuning (Kepatuhan Kompetisi)
 
