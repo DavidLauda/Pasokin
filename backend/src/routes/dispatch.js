@@ -138,6 +138,7 @@ router.post('/', async (req, res) => {
       }
 
       if (isFinalDecision && req.body.dispatch_id) {
+          await procurementsStore.saveAllocations(req.body.dispatch_id, allocations);
           await procurementsStore.createPayments(req.body.dispatch_id, allocations);
           await dispatchLog.markFinalSubmitted(req.body.dispatch_id);
       }
@@ -146,7 +147,7 @@ router.post('/', async (req, res) => {
 
   } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Gagal memproses dispatch" });
+      res.status(err.status || 500).json({ error: err.status ? err.message : 'Gagal memproses dispatch' });
   }
 });
 

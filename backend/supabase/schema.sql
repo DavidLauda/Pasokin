@@ -145,6 +145,28 @@ create table if not exists public.payments (
   unique (procurement_id, supplier_id)
 );
 
+-- Additive payment migration. Funds collected by Xendit enter the platform's
+-- merchant balance; these states model an escrow-style workflow, not regulated escrow.
+alter table public.payments add column if not exists payment_method text;
+alter table public.payments add column if not exists gateway_request_id text;
+alter table public.payments add column if not exists gateway_payment_id text;
+alter table public.payments add column if not exists gateway_lock_at timestamptz;
+alter table public.payments add column if not exists expires_at timestamptz;
+alter table public.payments add column if not exists paid_at timestamptz;
+alter table public.payments add column if not exists shipped_at timestamptz;
+alter table public.payments add column if not exists delivered_at timestamptz;
+alter table public.payments add column if not exists released_at timestamptz;
+alter table public.payments add column if not exists tracking_note text;
+alter table public.payments add column if not exists delivery_proof_url text;
+alter table public.payments add column if not exists dispute_reason text;
+alter table public.payments add column if not exists payout_status text not null default 'not_started';
+alter table public.payments add column if not exists is_demo boolean not null default false;
+create unique index if not exists payments_gateway_request_key on public.payments (gateway_request_id)
+  where gateway_request_id is not null;
+create unique index if not exists payments_gateway_payment_key on public.payments (gateway_payment_id)
+  where gateway_payment_id is not null;
+create index if not exists payments_supplier_idx on public.payments (supplier_id, created_at desc);
+
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   supplier_id text not null references public.suppliers(id),

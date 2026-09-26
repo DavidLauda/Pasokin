@@ -28,10 +28,16 @@ router.get('/', async (req, res, next) => {
 
 router.get('/history', async (req, res, next) => {
   try {
-    const [procurements, logs] = await Promise.all([
-      procurementsStore.list(), dispatchLog.getAllLogs()
+    const [procurements, logs, payments] = await Promise.all([
+      procurementsStore.list(), dispatchLog.getAllLogs(), db.list('payments')
     ]);
     const logsByProcurement = new Map();
+    const paymentStatuses = new Map();
+    for (const payment of payments) {
+      const statuses = paymentStatuses.get(payment.procurement_id) || [];
+      statuses.push(payment.status);
+      paymentStatuses.set(payment.procurement_id, statuses);
+    }
     for (const log of logs) {
       const group = logsByProcurement.get(log.dispatch_id) || [];
       group.push(log);
@@ -45,6 +51,7 @@ router.get('/history', async (req, res, next) => {
         parsed_material_summary: row.parsed_material_summary,
         manual_price: row.manual_price, manual_quantity: row.manual_quantity,
         manual_unit: row.manual_unit, status: row.status,
+        payment_statuses: paymentStatuses.get(row.id) || [],
         supplier_count: suppliers.length || (row.negotiated_supplier_id ? 1 : 0),
         created_at: row.created_at, updated_at: row.updated_at,
         suppliers, requirement: row.parsed_material_summary || {}, po_sent: true

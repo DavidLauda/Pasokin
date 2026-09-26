@@ -101,6 +101,12 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
    Backend membaca dan menulis supplier, procurement, alokasi, balasan, riwayat RFQ, dan pengaturan dari Supabase. Jalankan `cd backend && npm test` untuk uji otomatis.
 
+### Pembayaran sandbox
+
+PO final membuat satu tagihan untuk tiap supplier pemenang. Di Riwayat Transaksi, buyer dapat membuat VA BCA sandbox dengan `XENDIT_SECRET_KEY` development yang memiliki izin **Money-in Write**. Setel webhook Payments API Xendit ke `https://<domain-backend>/api/payments/xendit/webhook` dan simpan callback token Xendit sebagai `XENDIT_WEBHOOK_TOKEN` di environment backend. Tanpa token ini, endpoint webhook menolak semua panggilan. Secret key dan callback token tidak boleh ditempatkan di `VITE_*` atau frontend.
+
+Mode Simulasi menyediakan alur Bayar → Kirim Barang → Barang Tiba yang tidak memanggil gateway. Dalam mode Live, konfirmasi bayar hanya diterima melalui webhook Xendit yang tervalidasi; tombol simulasi ditolak. Dana dari Xendit masuk ke saldo merchant Pasokin. Status `released` hanya mencatat persetujuan pelepasan dana; transfer bank masih perlu diproses manual dan ditandai `pending_manual`. Ini alur mirip escrow untuk demo, bukan layanan escrow berlisensi atau payout otomatis. QRIS, auto-release, dan refund otomatis belum tersedia.
+
    Status dashboard buyer diperbarui berkala selama sesi login. Endpoint stream Supabase Realtime tetap tersedia bagi klien yang mengirim token bearer; native `EventSource` browser tidak dipakai karena tidak dapat mengirim header Authorization. Skrip smoke database di `backend/test` memerlukan penyesuaian token akun buyer sebelum dipakai terhadap endpoint yang terlindungi.
 
 ### Proses Loading Model Triage

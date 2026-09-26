@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bot, LogOut, Pencil } from 'lucide-react';
 import client from '../api/client';
 import SupplierForm from './SupplierForm';
+import SupplierPayments from './SupplierPayments';
 
 export default function SupplierRegistration({ user, onLogout }) {
   const [profile, setProfile] = useState(null);
@@ -34,6 +35,7 @@ export default function SupplierRegistration({ user, onLogout }) {
           </> : <>
             <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">{profile.name}</h1><p className="mt-2 text-sm text-slate-600">Profil supplier sudah terdaftar dan siap menerima RFQ.</p></div><button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white"><Pencil className="h-4 w-4" />Edit profil</button></div>
             {!profile.location_verified && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Lokasi belum ditemukan. Pilih pin pada peta lewat Edit profil agar buyer dapat melihat estimasi jarak.</p>}
+            {!(profile.payout_bank && profile.payout_account_number && profile.payout_account_holder) && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Lengkapi bank, nomor rekening, dan nama pemilik rekening melalui Edit profil sebelum pencairan bank diproses.</p>}
             <dl className="mt-7 grid gap-4 rounded-2xl bg-slate-50 p-5 text-sm sm:grid-cols-2">
               {[
                 ['Status verifikasi', profile.verification_status], ['Kontak WhatsApp', profile.phone],
@@ -45,6 +47,7 @@ export default function SupplierRegistration({ user, onLogout }) {
           </>}
         </>}
       </div>
+      {profile && !editing && <SupplierPayments />}
     </div>
   </main>;
 }

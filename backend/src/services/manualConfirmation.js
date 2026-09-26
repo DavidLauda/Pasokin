@@ -1,5 +1,7 @@
 const store = require('./manualConfirmationStore');
 const whatsapp = require('./whatsappService');
+const db = require('../db');
+const procurementsStore = require('./procurementsStore');
 
 function fail(status, message) {
   const error = new Error(message);
@@ -107,6 +109,16 @@ async function resolve(id, decision) {
     : { status: 'triaging', manual_price: null, manual_unit: null, manual_quantity: null };
   const updated = await store.updateIfStatus(id, 'awaiting_summary_confirmation', changes);
   if (!updated) fail(409, 'Status pengadaan berubah; muat ulang halaman');
+  if (decision === 'confirm') {
+    const { data, error } = await db.getClient().from('suppliers').select('id')
+      .eq('supplier_uuid', procurement.negotiated_supplier_id).single();
+    if (error) throw new Error(`Supabase: ${error.message}`);
+    await procurementsStore.saveAllocations(id, [{ supplier_id: data.id,
+      qty: procurement.manual_quantity, price_per_unit: procurement.manual_price,
+      cost: Number(procurement.manual_quantity) * Number(procurement.manual_price) }]);
+    await procurementsStore.createPayments(id, [{ supplier_id: data.id,
+      qty: procurement.manual_quantity, price_per_unit: procurement.manual_price }]);
+  }
   return detail(id);
 }
 

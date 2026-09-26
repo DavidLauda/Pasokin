@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
 import client from '../api/client';
 import ProcurementStatus from './ProcurementStatus';
+import PaymentPanel from './PaymentPanel';
 import { formatProcurementDate } from './procurementStatusData';
 
 const formatNumber = value => Number(value).toLocaleString('id-ID');
 
-export default function ProcurementDetail({ procurementId, refreshKey, onBack, onOpenWorkflow, onOpenHistory }) {
+export default function ProcurementDetail({ procurementId, refreshKey, onBack, onOpenWorkflow, onOpenHistory, demoMode }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,6 +80,8 @@ export default function ProcurementDetail({ procurementId, refreshKey, onBack, o
           {suppliers.length ? <ul className="mt-4 space-y-2">{suppliers.map(supplier => <li key={supplier.supplier_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm"><span>{supplier.name || supplier.supplier_id}{supplier.distance_km != null && <span className="block text-xs tabular-nums text-slate-500">{Number(supplier.distance_km).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km dari lokasi kirim</span>}</span><span className={supplier.status === 'sent' ? 'font-semibold text-emerald-700' : 'font-semibold text-amber-700'}>{supplier.status === 'sent' ? 'Terkirim' : 'Gagal terkirim'}</span></li>)}</ul> : <p className="mt-3 text-sm text-slate-500">Belum ada pengiriman ke supplier.</p>}
         </section>
       </div>
+
+      <PaymentPanel procurementId={procurementId} demoMode={demoMode} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7" aria-label="Percakapan supplier">
         <h3 className="font-bold text-slate-900">Percakapan supplier</h3>

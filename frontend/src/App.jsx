@@ -233,6 +233,7 @@ function App({ user, onLogout }) {
                     onBack={() => setAppState('active')}
                     onOpenWorkflow={handleOpenActiveWorkflow}
                     onOpenHistory={() => setAppState('history')}
+                    demoMode={health.demoMode}
                   />
                 )}
 
@@ -268,6 +269,8 @@ function App({ user, onLogout }) {
                     <TransactionHistory
                         refreshKey={historyRefreshKey}
                         onOpenDashboard={handleOpenHistoryDetail}
+                        demoMode={health.demoMode}
+                        initialProcurementId={selectedProcurementId}
                     />
                 )}
             </div>

@@ -88,12 +88,18 @@ async function saveAllocations(id, allocations) {
 async function createPayments(id, allocations) {
   const winners = allocations.filter(allocation => Number(allocation.qty) > 0);
   if (!winners.length) return [];
-  return db.upsert('payments', winners.map(allocation => ({
-    procurement_id: id,
-    supplier_id: allocation.supplier_id,
-    amount: allocation.cost,
-    status: 'awaiting_payment'
-  })), 'procurement_id,supplier_id');
+  const rows = winners.map(allocation => {
+    const amount = Number(allocation.qty) * Number(allocation.price_per_unit || allocation.cost / allocation.qty);
+    if (!allocation.supplier_id || !Number.isSafeInteger(amount) || amount <= 0) {
+      throw Object.assign(new Error('Jumlah pembayaran PO harus positif dan berupa Rupiah bulat'), { status: 400 });
+    }
+    return { procurement_id: id, supplier_id: allocation.supplier_id,
+      amount, status: 'awaiting_payment' };
+  });
+  const { data, error } = await db.getClient().from('payments').upsert(rows,
+    { onConflict: 'procurement_id,supplier_id', ignoreDuplicates: true }).select('*');
+  if (error) throw new Error(`Supabase: ${error.message}`);
+  return data;
 }
 
 module.exports = { create, get, getByReference, list, setStatus, supplierUuid,

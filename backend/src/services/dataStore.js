@@ -63,6 +63,21 @@ function supplierInput(input, current = null) {
   }
   if (row.nib !== undefined) row.nib = normalizeIdentity(row.nib, 'NIB', [13]);
   if (row.npwp !== undefined) row.npwp = normalizeIdentity(row.npwp, 'NPWP', [15, 16]);
+  for (const field of ['payout_bank', 'payout_account_number', 'payout_account_holder']) {
+    if (row[field] !== undefined) row[field] = String(row[field] || '').trim() || null;
+  }
+  const bank = row.payout_bank !== undefined ? row.payout_bank : current?.payout_bank;
+  const account = row.payout_account_number !== undefined ? row.payout_account_number : current?.payout_account_number;
+  const holder = row.payout_account_holder !== undefined ? row.payout_account_holder : current?.payout_account_holder;
+  // Older supplier profiles may have partial payout details. Check the complete
+  // destination before it can be used, while allowing those profiles to be edited.
+  if (bank && account && holder && !/^\d{8,25}$/.test(account)) invalid('Nomor rekening harus 8–25 digit');
+  const businessName = String(row.name !== undefined ? row.name : current?.name || '').toLowerCase()
+    .replace(/\b(pt|cv|ud|tbk)\b/g, '').replace(/[^a-z0-9]/g, '');
+  const holderName = String(holder || '').toLowerCase().replace(/\b(pt|cv|ud|tbk)\b/g, '').replace(/[^a-z0-9]/g, '');
+  if (bank && account && holderName && businessName && !(holderName.includes(businessName) || businessName.includes(holderName))) {
+    invalid('Nama pemilik rekening harus sesuai dengan nama usaha');
+  }
   row.verification_status = verificationStatus(
     row.nib !== undefined ? row.nib : current?.nib,
     row.npwp !== undefined ? row.npwp : current?.npwp

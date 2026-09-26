@@ -30,6 +30,7 @@ app.use('/api/wa', waRouter);
 app.use('/api/wa-replies', requireRole('buyer'), waRepliesRouter);
 app.use('/api/settings', requireRole('buyer'), settingsRouter);
 app.use('/api/procurements', requireRole('buyer'), procurementsRouter);
+app.use('/api/payments', require('./routes/payments'));
 
 const configService = require('./services/configService');
 
