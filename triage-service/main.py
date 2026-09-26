@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime
 
 import torch
 from dotenv import load_dotenv
@@ -144,6 +145,109 @@ def _extract_json(raw_text: str) -> dict:
     return json.loads(json_str)
 
 
+ID_MONTHS = {
+    "januari": 1, "februari": 2, "maret": 3, "april": 4, "mei": 5, "juni": 6,
+    "juli": 7, "agustus": 8, "september": 9, "oktober": 10, "november": 11, "desember": 12,
+}
+
+
+def _parse_id_date(text: str):
+    """'12 Oktober 2026' -> datetime(2026, 10, 12). None kalau tidak match."""
+    m = re.search(r"(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})", text or "")
+    if not m:
+        return None
+    day, month_name, year = m.groups()
+    month = ID_MONTHS.get(month_name.lower())
+    if not month:
+        return None
+    try:
+        return datetime(int(year), month, int(day))
+    except ValueError:
+        return None
+
+
+def _extract_rfq_context(text_input: str) -> dict:
+    """Ambil angka acuan RFQ (harga target, qty diminta, sisa hari sampai target
+    kirim) dari text_input, biar guardrail punya sesuatu buat dibandingkan.
+    Menangani dua format text_input yang beredar:
+      - lama:  '... target harga Rp <x>, target pengiriman maksimal <n> hari ...'
+      - baru:  '... Rp<x>. Tanggal RFQ dikirim: <tgl>. Target kirim: <tgl>. ...'
+    """
+    rfq_part = text_input.split("Balasan Supplier:")[0]
+
+    price_match = re.search(r"Rp\.?\s*([\d.,]+)", rfq_part)
+    rfq_price = None
+    if price_match:
+        try:
+            rfq_price = float(price_match.group(1).replace(".", "").replace(",", "."))
+        except ValueError:
+            rfq_price = None
+
+    unit_words = r"kg|ton|batang|meter|pcs|pieces|unit|lembar|dus|karung|sak|liter|roll|gulung|buah|pack|box|kardus|m2|m3"
+    qty_match = re.search(rf"(\d+(?:[.,]\d+)?)\s*(?:{unit_words})\b", rfq_part, re.IGNORECASE)
+    rfq_qty = float(qty_match.group(1).replace(",", ".")) if qty_match else None
+
+    max_lead_days = None
+    explicit_days = re.search(r"maksimal\s+(\d+)\s+hari", rfq_part, re.IGNORECASE)
+    if explicit_days:
+        max_lead_days = int(explicit_days.group(1))
+    else:
+        sent_match = re.search(r"Tanggal RFQ dikirim:\s*([^.]+)\.", rfq_part, re.IGNORECASE)
+        target_match = re.search(r"Target kirim:\s*([^.]+)\.", rfq_part, re.IGNORECASE)
+        if sent_match and target_match:
+            d1 = _parse_id_date(sent_match.group(1))
+            d2 = _parse_id_date(target_match.group(1))
+            if d1 and d2:
+                max_lead_days = (d2 - d1).days
+
+    return {"rfq_price": rfq_price, "rfq_qty": rfq_qty, "max_lead_days": max_lead_days}
+
+
+def _apply_triage_guardrail(parsed: dict, text_input: str) -> dict:
+    """Fase II T1/T4/T5: guardrail deterministik SETELAH model, targetnya
+    40.7% False-Confirmed rate di baseline. Cuma pernah mengetatkan
+    confirmed -> needs_manual_review, tidak pernah ke arah sebaliknya --
+    jadi tidak menambah missed-confirmation rate.
+
+    Aturan (konsisten dengan 46 kasus eval Triage yang sudah direview tim):
+    - Tidak ada angka (qty/harga/lead_time) yang berhasil diekstrak sama sekali
+      -> jangan pernah percaya "confirmed" tanpa bukti (T5).
+    - Harga supplier di atas harga target RFQ -> review (T1).
+    - Qty tidak disebutkan eksplisit -> review (partial qty tetap boleh,
+      asal ADA angkanya -- keputusan tim soal partial-qty confirmed).
+    - Tidak ada lead time/tanggal kirim eksplisit -> review (T4).
+    - Lead time yang disebutkan melewati target kirim -> review (T4).
+    """
+    if parsed.get("classification") != "confirmed":
+        return parsed
+
+    extracted = parsed.get("ai_extracted") or {}
+    qty = extracted.get("qty")
+    price = extracted.get("price")
+    lead_time_days = extracted.get("lead_time_days")
+
+    ctx = _extract_rfq_context(text_input)
+    reason = None
+
+    if qty is None and price is None and lead_time_days is None:
+        reason = "tidak ada angka (qty/harga/lead time) yang berhasil diekstrak dari balasan"
+    elif price is not None and ctx["rfq_price"] is not None and price > ctx["rfq_price"]:
+        reason = f"harga supplier ({price}) di atas harga RFQ ({ctx['rfq_price']})"
+    elif qty is None:
+        reason = "qty tidak disebutkan secara eksplisit di balasan"
+    elif lead_time_days is None:
+        reason = "tidak ada tanggal/estimasi pengiriman eksplisit di balasan"
+    elif ctx["max_lead_days"] is not None and lead_time_days > ctx["max_lead_days"]:
+        reason = f"lead time ({lead_time_days} hari) melewati target ({ctx['max_lead_days']} hari)"
+
+    if reason:
+        parsed["classification"] = "needs_manual_review"
+        original_summary = parsed.get("ai_summary", "") or ""
+        parsed["ai_summary"] = f"{original_summary} [Guardrail: {reason}]".strip()
+
+    return parsed
+
+
 @app.post("/triage", response_model=TriageResponse)
 def triage(req: TriageRequest):
     if _model is None or _tokenizer is None:
@@ -183,6 +287,8 @@ def triage(req: TriageRequest):
                 "raw_model_output": model_reply,
             },
         )
+
+    parsed = _apply_triage_guardrail(parsed, req.text_input)
 
     return TriageResponse(**parsed, raw_model_output=model_reply)
 

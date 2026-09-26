@@ -7,9 +7,11 @@ function optimizeAllocation(requirement, candidates) {
 
     // 1. TAHAP PERTAMA: Ambil Bobot Prioritas dari Request
     // Dikonversi menjadi proporsi (sum = 1) untuk perhitungan Weighted Sum Model
-    let wCost = (requirement.priority?.cost || 40) / 100;
-    let wSpeed = (requirement.priority?.speed || 40) / 100;
-    let wRisk = (requirement.priority?.risk || 20) / 100;
+    // O2 fix: '??' bukan '||' -- weight 0 eksplisit (mis. priority.speed = 0)
+    // harus tetap 0, tidak boleh ketimpa default cuma karena 0 dianggap falsy.
+    let wCost = (requirement.priority?.cost ?? 40) / 100;
+    let wSpeed = (requirement.priority?.speed ?? 40) / 100;
+    let wRisk = (requirement.priority?.risk ?? 20) / 100;
     
     // Normalisasi bobot agar jumlah pasti 1 (menghindari error jika input user salah)
     const totalWeight = wCost + wSpeed + wRisk;
@@ -65,7 +67,14 @@ function optimizeAllocation(requirement, candidates) {
     for (const supplier of scoredCandidates) {
         let qtyToTake = 0;
 
-        if (remainingQty > 0) {
+        // O1 fix: supplier yang lead_time-nya melewati target_kirim_days (requirement.maxLeadTimeDays)
+        // tidak boleh kebagian alokasi sama sekali, walau skornya menang -- sebelumnya deadline
+        // tidak pernah dicek, jadi supplier termurah-tapi-telat bisa menang alokasi (jadi "late").
+        // Supplier ini tetap ditampilkan di hasil (qty 0), bukan dihilangkan dari daftar.
+        const withinDeadline = requirement.maxLeadTimeDays == null
+            || supplier.lead_time_days <= requirement.maxLeadTimeDays;
+
+        if (remainingQty > 0 && withinDeadline) {
             qtyToTake = Math.min(supplier.max_capacity_qty, remainingQty);
 
             // Cek constraint MOQ (Minimum Order Quantity): kalau sisa kebutuhan lebih kecil
