@@ -87,14 +87,14 @@ async function getSuppliersByCategory(category) {
   ).map(publicSupplier);
 }
 
-async function addSupplier(input) {
+async function addSupplier(input, reservedId = null) {
   const row = supplierInput(input);
   if (!row.name || !row.phone || !row.categories?.length || !row.address ||
       !(row.max_capacity_qty > 0) || !(row.min_order_qty > 0) ||
       row.min_order_qty > row.max_capacity_qty) {
     invalid('Nama, kontak, kategori, alamat, kapasitas, dan MOQ yang valid wajib diisi');
   }
-  return db.insert('suppliers', { id: `sup-${crypto.randomUUID()}`, ...row });
+  return db.insert('suppliers', { id: reservedId || `sup-${crypto.randomUUID()}`, ...row });
 }
 
 async function updateSupplier(id, input) {
