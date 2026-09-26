@@ -6,6 +6,7 @@ import OptimizationDashboard from './components/OptimizationDashboard';
 import SupplierManagement from './components/SupplierManagement';
 import TransactionHistory from './components/TransactionHistory';
 import ActiveProcurements from './components/ActiveProcurements';
+import ProcurementDetail from './components/ProcurementDetail';
 import client from './api/client';
 
 function App() {
@@ -31,7 +32,12 @@ function App() {
     setOptimizationResult(data);
     setSelectedProcurementId(data.dispatch_id);
     setHistoryRefreshKey(key => key + 1);
-    setAppState('active');
+    setAppState('detail');
+  };
+
+  const handleOpenProcurementDetail = (id) => {
+    setSelectedProcurementId(id);
+    setAppState('detail');
   };
 
   const handleOpenActiveWorkflow = (procurement) => {
@@ -139,8 +145,8 @@ function App() {
             <a href="#" onClick={(e) => {
                 e.preventDefault();
                 setAppState('active');
-            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${['active', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
+            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'detail', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${['active', 'detail', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
             <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -166,7 +172,8 @@ function App() {
         <header className="relative z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md md:h-20 md:px-8">
             <div className="flex items-center gap-4">
                 <h1 className="text-lg font-extrabold text-slate-900 md:text-2xl">
-                    {appState === 'active' ? 'Pengadaan Aktif' :
+                    {appState === 'detail' ? 'Detail Pengadaan' :
+                     appState === 'active' ? 'Pengadaan Aktif' :
                      appState === 'input' ? 'Pengadaan Baru' :
                      appState === 'dashboard' ? 'Dashboard Pengadaan' :
                      appState === 'suppliers' ? 'Manajemen Supplier' :
@@ -198,7 +205,7 @@ function App() {
             ['input', 'Pengadaan Baru'], ['active', 'Pengadaan Aktif'],
             ['suppliers', 'Supplier'], ['history', 'Riwayat']
           ].map(([value, label]) => {
-            const selected = value === 'active' ? ['active', 'dashboard'].includes(appState) : appState === value;
+            const selected = value === 'active' ? ['active', 'detail', 'dashboard'].includes(appState) : appState === value;
             return <button key={value} type="button" onClick={() => setAppState(value)} aria-current={selected ? 'page' : undefined}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${selected ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
               {label}
@@ -212,9 +219,18 @@ function App() {
                 {/* Active procurement monitoring */}
                 {appState === 'active' && (
                   <ActiveProcurements
-                    initialId={selectedProcurementId}
                     refreshKey={historyRefreshKey}
+                    onOpenDetail={handleOpenProcurementDetail}
+                  />
+                )}
+
+                {appState === 'detail' && selectedProcurementId && (
+                  <ProcurementDetail
+                    procurementId={selectedProcurementId}
+                    refreshKey={historyRefreshKey}
+                    onBack={() => setAppState('active')}
                     onOpenWorkflow={handleOpenActiveWorkflow}
+                    onOpenHistory={() => setAppState('history')}
                   />
                 )}
 

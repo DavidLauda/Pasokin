@@ -129,7 +129,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
                                     disabled={dispatchStatus === 'dispatching'}
                                     className="px-6 py-2 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm"
                                 >
-                                    Tutup
+                                    {dispatchStatus === 'done' && successfulCount > 0 ? 'Lihat Detail Pengadaan' : 'Tutup'}
                                 </button>
                             </div>
                         </div>
