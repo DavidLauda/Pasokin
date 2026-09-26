@@ -113,7 +113,7 @@ IMPORTANT CONTEXT:
 Raw requirement: "${rawInput}"`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash-lite',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
@@ -151,7 +151,7 @@ Alokasi:
 ${JSON.stringify(allocations, null, 2)}`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash-lite',
             contents: prompt
         });
 
@@ -285,7 +285,7 @@ PENTING: Output HARUS berupa JSON murni dengan format berikut:
 }`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash-lite',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
@@ -355,7 +355,7 @@ PENTING: Output HARUS berupa JSON ARRAY dengan format:
 ]`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash-lite',
             contents: prompt,
             config: {
                 responseMimeType: "application/json"
