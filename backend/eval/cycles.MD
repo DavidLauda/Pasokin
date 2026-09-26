@@ -107,7 +107,7 @@ The guardrail checks the model's **extracted** numbers, and those numbers are th
 **Decision:**
 - Cycle 2: retrain (T2/T3) so the extraction itself becomes reliable.
 
-## Cycle 2 — optimizer, parser, triage — 09.19–09.24 WIB
+## Cycle 2 — optimizer, parser, triage — 16.20–16.26 WIB
 
 - **Commit:** `baf50d8`
 - **Results:** `results/optimizer_cycle2.json`, `results/parser_cycle2.json`, `results/triage_cycle2.json` (+ `_summary.json` each)
@@ -196,3 +196,133 @@ Remaining false-confirms cluster in categories the guardrail was never designed 
 **Decision:** keep the retrain — improvement on missed-confirmation and classification accuracy, worth the risk of the smaller false-confirm improvement. Two follow-ups:
 1. Extend the guardrail in `triage-service/main.py` to flag payment-term phrases (tempo, DP, cicilan) and partial-qty-without-explicit-date directly from the reply text as `needs_manual_review`.
 2. Changed the prompt for the parser problem mid-point issue.
+
+## Cycle 3 — parser, triage — 17.10–17.16 WIB
+
+- **Commit:** `7676a74`
+- **Results:** `results/optimizer_cycle3.json`, `results/parser_cycle3.json`, `results/triage_cycle3.json` (+ `_summary.json` each)
+- **Scope:** Parser P5 (quantity-range midpoint) — `backend/src/services/geminiService.js`; Triage guardrail rewrite (read supplier reply text directly instead of model extraction) — `triage-service/main.py`, new file `triage-service/deterministic_checks.py`. Optimizer untouched this cycle (no open items after Cycle 2).
+
+### Summary
+
+| Component | Metric | Cycle 2 → Cycle 3 |
+| --- | --- | --- |
+| Optimizer | Test pass rate | 100.0% → **100.0%** (unchanged, not touched) |
+| Parser | Overall pass rate | 91.7% → **91.7%** (unchanged net; one fix, one new regression) |
+| Parser | quantity | 97.2% → **100%** |
+| Parser | materialName | 97.2% → **94.4%** (regression, see below) |
+| Triage | False-Confirmed rate | 35.3% → **12.5%** |
+| Triage | Missed-confirmation rate | 8.3% → **12.5%** (worse) |
+| Triage | Classification accuracy | 70.8% → **87.5%** |
+| Triage | lead_time_days extraction | 62.5% → **91.7%** |
+| Triage | Overall pass rate | 35.4% → **62.5%** |
+
+---
+
+### Cycle 3a — Optimizer
+
+No changes made this cycle — suite stayed at 100% pass, 0 constraint violations, confirming Cycle 2's O3 fix holds with no regressions from unrelated work. No open items remain in this component.
+
+---
+
+### Cycle 3b — Parser (P5, quantity-range midpoint)
+
+**Finding (Temuan)**
+- parser_029 (Cycle 2 regression): quantity for a range ("sekitar 60-70 lembar") returned the upper bound (70) instead of the agreed midpoint (65).
+
+**Hypothesis**
+- The prompt had no instruction at all for range-form quantities, so the model defaulted to picking one end of the range rather than computing a midpoint.
+
+**Change (Perbaikan)** — `backend/src/services/geminiService.js`
+- Added an explicit prompt rule: quantity ranges resolve to the midpoint, rounded to the nearest whole number, with a worked example ("60-70" → 65).
+
+**Result (Hasil uji)**
+- Overall pass rate held at 91.7% (33/36) — one fix, one new regression, net zero.
+- FAIL → PASS: **parser_029** — now correctly returns `quantity: 65`.
+- **PASS → FAIL (regression): parser_017** — "smen" (typo for "Semen") is no longer corrected to "Semen"; `materialName` now returned verbatim as "smen". No instruction touching typo correction was added or removed this cycle, and the Gemini call has no `temperature: 0` / fixed seed set, so this is more likely inherent model non-determinism resurfacing on a case that happened to pass before, rather than something caused by the range-midpoint instruction. Worth a rerun to confirm before treating it as a real regression.
+- Unchanged: parser_014 (still the known stale test fixture — expected offset should be +9, not +8; the model's `2026-10-28` answer is correct) and parser_034 (brand name kept in `materialName`, still pending a product decision).
+
+**Decision:** keep the range-midpoint rule — it does what it was meant to do. Flag parser_017 for a rerun rather than a code change, since there's no clear causal link to this cycle's edit.
+
+---
+
+### Cycle 3c — Triage (guardrail rewrite: read reply text directly)
+
+**Finding (Temuan) — carried from Cycle 2c**
+- Cycle 2's guardrail read `ai_extracted` fields, which were still unreliable (lead_time_days 62.5% accurate) — so the guardrail was amplifying extraction errors as much as catching real problems. Cycle 2's decision was explicit: revise so the rules read the supplier's reply text directly.
+
+**Change (Perbaikan)** — `triage-service/main.py` + new `triage-service/deterministic_checks.py`
+- `lead_time_days` is now computed deterministically from the reply text (keywords, absolute/partial dates with anchor+rollover, day names, "N hari lagi") and used to **overwrite** the model's own extracted value, not just to gate classification.
+- Guardrail now checks, directly against the reply text: no numbers at all, an explicit price in the reply that exceeds the RFQ price (via regex, not `ai_extracted.price`), missing/late delivery date, payment-term phrases (tempo/DP/cicilan), and hedging language (insyaallah/mungkin/dst.).
+
+**Result (Hasil uji)**
+- False-Confirmed rate 35.3% → **12.5%** (FP 12 → 3). Classification accuracy 70.8% → **87.5%**. lead_time_days extraction 62.5% → **91.7%**. Overall pass rate 35.4% → **62.5%**.
+- Tool-reported FAIL → PASS (14 cases): triage_001, 002, 003, 005, 011, 012, 013, 015, 018, 019, 029, 033, 034, 046.
+- Tool-reported PASS → FAIL (regression): triage_042 only.
+- **Missed-confirmation rate got worse (8.3% → 12.5%, FN 2 → 3).** The tool's FAIL/PASS diff only compares the strict `pass` field, and — same limitation flagged in Cycle 1c — that hides classification-level flips when a case was already failing on field-extraction in both runs. Recomputed directly from `class_pass` across both result files: **11 real classification fixes** (a superset of what the tool showed, since several cases like triage_001/005/011/012/013/033 were already classified correctly and only had their `lead_time_days` field fixed) against **3 real classification regressions**, not 1:
+  - **triage_016** ("kirim 20 Okt") — new false review. Root cause: the date-with-month-name regex only matches full Indonesian month names (`oktober`, `november`, ...), not abbreviations (`Okt`). Returns `None` → guardrail reads that as "no delivery date mentioned" → forces `needs_manual_review`.
+  - **triage_042** ("oke pak 70rb, eh maksud saya 78rb...") — new false confirm. Cycle 2's guardrail (which compared `ai_extracted.price` — the model's own, already-corrected 78000 — against the RFQ price) caught this correctly. Cycle 3's `_extract_reply_price` regex uses `re.search`, which returns the **first** number in the text (70rb), not the self-corrected one (78rb) — so the price-too-high check never fires.
+  - **triage_043** ("total 2,7jt utk 30 pcs") — new false review. `_extract_reply_price` correctly extracts the **total** price (2,700,000), but compares it directly against the RFQ's **per-unit** price (Rp100,000) without dividing by quantity first — unlike the JS parser's existing per-unit-price handling. 2,700,000 > 100,000 trips the "price above RFQ" rule for a case that is actually a fair per-unit price (90,000/pcs).
+- **Newly discovered bug (not yet causing a wrong classification, but a latent risk):** in `_resolve_lead_time_from_reply`, the day-name loop checks `"minggu"` as a literal weekday name (Sunday) *before* the later `"minggu depan"` / `"minggu ini"` idiom checks. Since "minggu" is also the ordinary word for "week", a reply like "...minggu depan" (triage_022) gets matched by the day-name branch first and resolved as "next Sunday" arithmetic instead of the intended "+7 days" idiom, producing a wrong-but-coincidentally-harmless number (13 instead of 7) in this particular case. This didn't flip a classification this time only because the case's ground truth doesn't hinge on the exact lead-time value — it will in a future case.
+- Unaddressed by this cycle (unchanged since Cycle 2, same root causes): price extraction (triage_006, 032, 038, 039, 041 — model still copies/misreads the RFQ or reply price; price accuracy flat at 81.25%), qty extraction on non-standard phrasing (triage_025, 026, 028 — MOQ rejection, alt-product offer, per-unit shipping cost; qty accuracy flat at 85.4%), and triage_023 (model's own classification is wrong on a plain "kirim lusa" confirm — a model reasoning issue, not something the reply-text guardrail is positioned to fix since it only ever downgrades, never upgrades).
+
+**Analysis**
+Net effect is a clear win — False-Confirmed rate roughly a third of Cycle 2's, classification accuracy up 16.7 points — but all three new regressions share one pattern: **the reply-text regexes assume the reply is simple and literal**, and break on self-correction, abbreviation, and total-vs-per-unit phrasing that the model itself (or the old ai_extracted-based check) handled more robustly. The lead-time month abbreviation and "minggu" collision are both narrow, mechanical regex gaps.
+
+**Decision:** keep the guardrail rewrite — the net classification-accuracy gain clearly outweighs the 3 new edge-case regressions. If time remains before 18.00, in order of cheapness:
+1. Add month abbreviations (`okt`, `nov`, `des`, etc.) as aliases in the date-with-month regex (fixes triage_016).
+2. Reorder `_resolve_lead_time_from_reply` so the "minggu depan"/"minggu ini" idiom checks run **before** the day-name loop (fixes the latent triage_022-style bug before it causes a real classification flip).
+3. Change `_extract_reply_price` to prefer the **last** price mention in the text over the first (fixes triage_042).
+4. Divide a detected "total" price by the reply's own qty before comparing to a per-unit RFQ price, when the reply phrasing says "total ... untuk/for N <unit>" (fixes triage_043) — higher effort, lower priority given time left.
+
+## Cycle 4 — triage — 17.34–17.39 WIB
+
+- **Commit:** `859c89d`
+- **Results:** `results/optimizer_cycle4.json`, `results/parser_cycle4.json`, `results/triage_cycle4.json` (+ `_summary.json` each)
+- **Scope:** the 4 fixes queued at the end of Cycle 3 — `triage-service/main.py`, `triage-service/deterministic_checks.py`. Optimizer and Parser untouched.
+
+### Summary
+
+| Component | Metric | Cycle 3 → Cycle 4 |
+| --- | --- | --- |
+| Optimizer | Test pass rate | 100.0% → **100.0%** (unchanged, not touched) |
+| Parser | Overall pass rate | 91.7% → **91.7%** (unchanged, not touched — identical field accuracy to Cycle 3) |
+| Triage | False-Confirmed rate | 12.5% → **11.5%** |
+| Triage | Missed-confirmation rate | 12.5% → **4.2%** |
+| Triage | Classification accuracy | 87.5% → **91.7%** |
+| Triage | lead_time_days extraction | 91.7% → **93.75%** |
+| Triage | Overall pass rate | 62.5% → **66.7%** |
+
+---
+
+### Cycle 4a — Optimizer / Parser
+
+No changes made to either component this cycle. Both suites confirmed unchanged: Optimizer stays at 100% pass, 0 violations; Parser's field-accuracy numbers are identical to Cycle 3 across every field, confirming nothing in the shared code path regressed from this cycle's triage-only work.
+
+---
+
+### Cycle 4b — Triage (Cycle 3's 4 queued fixes)
+
+**Change (Perbaikan)** — `triage-service/main.py`, `triage-service/deterministic_checks.py`
+1. Added month abbreviations (`okt`, `nov`, `des`, etc.) as aliases in the date-with-month regex.
+2. Reordered `resolve_lead_time_days` so the "minggu depan"/"minggu ini" idiom checks run before the day-name loop.
+3. Changed `extract_reply_price` to take the **last** price mention per pattern instead of the first.
+4. Added total-price ÷ qty normalization in `extract_reply_price` when the reply phrasing says "total ... untuk/for N \<unit\>", so a total is compared to the RFQ's per-unit price on equal terms.
+
+**Result (Hasil uji)**
+
+The tool's strict FAIL→PASS diff shows only 2 flips (triage_016, triage_042) with zero regressions. Recomputing directly from `class_pass` (as flagged as a blind spot in Cycle 3) shows a third real fix the tool's diff missed:
+
+- **triage_016** (fix #1) — FAIL → PASS in full. "kirim 20 Okt" now resolves correctly (lead_time_days 14), abbreviation match works as intended.
+- **triage_042** (fix #3) — FAIL → PASS in full. Self-correction ("70rb, eh maksud saya 78rb") now reads the last-mentioned price (78000) instead of the first, no longer falsely blocking a legitimate confirm.
+- **triage_043** (fix #4) — **classification-level fix, not visible in the tool's diff.** `class_pass` flips false → true (needs_manual_review → confirmed, matching expected): the total-price ÷ qty normalization stops the guardrail from comparing a raw total (2,700,000) against a per-unit RFQ price (100,000). The case still shows as failing overall because `ai_extracted.qty`/`price` (2700 / 100000) are wrong — that's the model's own extraction, which the guardrail doesn't touch for qty/price (only lead_time_days gets overwritten). The guardrail logic itself is now correct; the remaining failure is a pre-existing extraction-accuracy issue, tracked separately below.
+- **Fix #2 (reorder) confirmed working numerically, no classification flip yet:** triage_022's computed `lead_time_days` for "minggu depan" changed from 13 (wrong, day-name-loop arithmetic) to 7 (correct, idiom arithmetic) — this is exactly the fix intended. It didn't flip triage_022's classification because that case's failure has a different, deeper cause (see below), but it removes a live miscalculation before it causes a wrong classification in some other case, as flagged as a risk in Cycle 3.
+- No PASS → FAIL regressions of any kind, tool-reported or class_pass-level.
+
+**Unresolved, unchanged from Cycle 3 (same root causes, not touched this cycle):**
+- **Price extraction reliability** (triage_006, 032, 038, 039, 041) — model still copies or misreads the reply's own price in several phrasings (slang "goceng", per-unit vs per-kilo, price-with-decimal-comma). Price field accuracy flat at 81.25%.
+- **Qty extraction on non-standard phrasing** (triage_025 MOQ rejection, 026 alt-product offer, 028 per-unit shipping surcharge, 043 total-price-implies-total-qty confusion) — qty field accuracy flat at 85.4%.
+- **triage_023 (FN — the one Missed-confirmation case remaining):** the model's own classification is wrong (needs_manual_review when it should be confirmed on a plain "kirim lusa" reply). The guardrail can only downgrade `confirmed`, never upgrade, so it's structurally unable to fix this — a model-reasoning issue, not a guardrail-rule issue.
+- **triage_014, triage_022, triage_047 (the 3 remaining False-Confirms):** all three share a pattern the guardrail doesn't yet model — a resolvable delivery date exists in the reply, but the date is either genuinely ambiguous (014: "kirim tgl 30" when the RFQ month has no day 30, forcing a rollover the supplier likely didn't intend), refers to the *unconfirmed remainder* rather than the confirmed quantity (022: "sisanya nyusul minggu depan" — the 200 units being confirmed have no date of their own), or is a vague whole-week reference the test data treats as too uncertain to auto-confirm regardless of whether it falls within target (047: "kirim minggu ini"). These are guardrail-rule gaps, not extraction bugs — the numbers being computed are arithmetically defensible, but the business rule for "when is a date confident enough to confirm on" isn't fully specified yet.
+
+**Decision:** keep all 4 fixes with 3 improvements

@@ -1,0 +1,27 @@
+{
+  "component": "triage",
+  "label": "cycle4",
+  "git_sha": "859c89d",
+  "timestamp": "2026-09-26T10:39:22",
+  "triage_url": "http://localhost:8001",
+  "n_cases": 48,
+  "confusion_matrix": {
+    "TP (exp confirmed, got confirmed)": 23,
+    "FN (exp confirmed, got review/error)": 1,
+    "FP (exp review, got confirmed)": 3,
+    "TN (exp review, got review)": 21,
+    "no_valid_label_by_expected": {}
+  },
+  "false_confirmed_rate": 0.1154,
+  "missed_confirmation_rate": 0.0417,
+  "classification_accuracy": 0.9167,
+  "json_validity": 1.0,
+  "extraction_accuracy": {
+    "qty": 0.8542,
+    "price": 0.8125,
+    "lead_time_days": 0.9375
+  },
+  "overall_pass_rate": 0.6667,
+  "service_errors": 0,
+  "avg_latency_s": 3.6219
+}
