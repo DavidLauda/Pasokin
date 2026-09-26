@@ -274,3 +274,55 @@ Net effect is a clear win — False-Confirmed rate roughly a third of Cycle 2's,
 2. Reorder `_resolve_lead_time_from_reply` so the "minggu depan"/"minggu ini" idiom checks run **before** the day-name loop (fixes the latent triage_022-style bug before it causes a real classification flip).
 3. Change `_extract_reply_price` to prefer the **last** price mention in the text over the first (fixes triage_042).
 4. Divide a detected "total" price by the reply's own qty before comparing to a per-unit RFQ price, when the reply phrasing says "total ... untuk/for N <unit>" (fixes triage_043) — higher effort, lower priority given time left.
+
+## Cycle 4 — triage — 17.34–17.39 WIB
+
+- **Commit:** `859c89d`
+- **Results:** `results/optimizer_cycle4.json`, `results/parser_cycle4.json`, `results/triage_cycle4.json` (+ `_summary.json` each)
+- **Scope:** the 4 fixes queued at the end of Cycle 3 — `triage-service/main.py`, `triage-service/deterministic_checks.py`. Optimizer and Parser untouched.
+
+### Summary
+
+| Component | Metric | Cycle 3 → Cycle 4 |
+| --- | --- | --- |
+| Optimizer | Test pass rate | 100.0% → **100.0%** (unchanged, not touched) |
+| Parser | Overall pass rate | 91.7% → **91.7%** (unchanged, not touched — identical field accuracy to Cycle 3) |
+| Triage | False-Confirmed rate | 12.5% → **11.5%** |
+| Triage | Missed-confirmation rate | 12.5% → **4.2%** |
+| Triage | Classification accuracy | 87.5% → **91.7%** |
+| Triage | lead_time_days extraction | 91.7% → **93.75%** |
+| Triage | Overall pass rate | 62.5% → **66.7%** |
+
+---
+
+### Cycle 4a — Optimizer / Parser
+
+No changes made to either component this cycle. Both suites confirmed unchanged: Optimizer stays at 100% pass, 0 violations; Parser's field-accuracy numbers are identical to Cycle 3 across every field, confirming nothing in the shared code path regressed from this cycle's triage-only work.
+
+---
+
+### Cycle 4b — Triage (Cycle 3's 4 queued fixes)
+
+**Change (Perbaikan)** — `triage-service/main.py`, `triage-service/deterministic_checks.py`
+1. Added month abbreviations (`okt`, `nov`, `des`, etc.) as aliases in the date-with-month regex.
+2. Reordered `resolve_lead_time_days` so the "minggu depan"/"minggu ini" idiom checks run before the day-name loop.
+3. Changed `extract_reply_price` to take the **last** price mention per pattern instead of the first.
+4. Added total-price ÷ qty normalization in `extract_reply_price` when the reply phrasing says "total ... untuk/for N \<unit\>", so a total is compared to the RFQ's per-unit price on equal terms.
+
+**Result (Hasil uji)**
+
+The tool's strict FAIL→PASS diff shows only 2 flips (triage_016, triage_042) with zero regressions. Recomputing directly from `class_pass` (as flagged as a blind spot in Cycle 3) shows a third real fix the tool's diff missed:
+
+- **triage_016** (fix #1) — FAIL → PASS in full. "kirim 20 Okt" now resolves correctly (lead_time_days 14), abbreviation match works as intended.
+- **triage_042** (fix #3) — FAIL → PASS in full. Self-correction ("70rb, eh maksud saya 78rb") now reads the last-mentioned price (78000) instead of the first, no longer falsely blocking a legitimate confirm.
+- **triage_043** (fix #4) — **classification-level fix, not visible in the tool's diff.** `class_pass` flips false → true (needs_manual_review → confirmed, matching expected): the total-price ÷ qty normalization stops the guardrail from comparing a raw total (2,700,000) against a per-unit RFQ price (100,000). The case still shows as failing overall because `ai_extracted.qty`/`price` (2700 / 100000) are wrong — that's the model's own extraction, which the guardrail doesn't touch for qty/price (only lead_time_days gets overwritten). The guardrail logic itself is now correct; the remaining failure is a pre-existing extraction-accuracy issue, tracked separately below.
+- **Fix #2 (reorder) confirmed working numerically, no classification flip yet:** triage_022's computed `lead_time_days` for "minggu depan" changed from 13 (wrong, day-name-loop arithmetic) to 7 (correct, idiom arithmetic) — this is exactly the fix intended. It didn't flip triage_022's classification because that case's failure has a different, deeper cause (see below), but it removes a live miscalculation before it causes a wrong classification in some other case, as flagged as a risk in Cycle 3.
+- No PASS → FAIL regressions of any kind, tool-reported or class_pass-level.
+
+**Unresolved, unchanged from Cycle 3 (same root causes, not touched this cycle):**
+- **Price extraction reliability** (triage_006, 032, 038, 039, 041) — model still copies or misreads the reply's own price in several phrasings (slang "goceng", per-unit vs per-kilo, price-with-decimal-comma). Price field accuracy flat at 81.25%.
+- **Qty extraction on non-standard phrasing** (triage_025 MOQ rejection, 026 alt-product offer, 028 per-unit shipping surcharge, 043 total-price-implies-total-qty confusion) — qty field accuracy flat at 85.4%.
+- **triage_023 (FN — the one Missed-confirmation case remaining):** the model's own classification is wrong (needs_manual_review when it should be confirmed on a plain "kirim lusa" reply). The guardrail can only downgrade `confirmed`, never upgrade, so it's structurally unable to fix this — a model-reasoning issue, not a guardrail-rule issue.
+- **triage_014, triage_022, triage_047 (the 3 remaining False-Confirms):** all three share a pattern the guardrail doesn't yet model — a resolvable delivery date exists in the reply, but the date is either genuinely ambiguous (014: "kirim tgl 30" when the RFQ month has no day 30, forcing a rollover the supplier likely didn't intend), refers to the *unconfirmed remainder* rather than the confirmed quantity (022: "sisanya nyusul minggu depan" — the 200 units being confirmed have no date of their own), or is a vague whole-week reference the test data treats as too uncertain to auto-confirm regardless of whether it falls within target (047: "kirim minggu ini"). These are guardrail-rule gaps, not extraction bugs — the numbers being computed are arithmetically defensible, but the business rule for "when is a date confident enough to confirm on" isn't fully specified yet.
+
+**Decision:** keep all 4 fixes with 3 improvements

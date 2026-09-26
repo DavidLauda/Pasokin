@@ -1,0 +1,12 @@
+{
+  "component": "optimizer",
+  "label": "cycle4",
+  "git_sha": "859c89d",
+  "timestamp": "2026-09-26T10:34:54",
+  "n_cases": 22,
+  "crashes": 0,
+  "test_pass_rate": 1.0,
+  "constraint_violation_rate": 0.0,
+  "violations_by_type": {},
+  "allocation_checked_cases": 20
+}
