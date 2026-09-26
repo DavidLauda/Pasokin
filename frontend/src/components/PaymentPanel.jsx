@@ -23,7 +23,7 @@ function PaymentCard({ payment, demoMode, onChanged, now }) {
     finally { setBusy(false); }
   };
 
-  return <article className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+  return <article className="rounded-xl border border-slate-200 bg-[#f9fbfb] p-4 text-sm">
     <div className="flex flex-wrap justify-between gap-2">
       <div><h4 className="font-bold text-slate-900">{payment.supplier_name}</h4>
         <p className="mt-1 tabular-nums text-slate-600">{payment.quantity != null ? `${Number(payment.quantity).toLocaleString('id-ID')} × ${money(payment.price_per_unit)}` : 'PO supplier'}</p></div>
@@ -58,7 +58,7 @@ export default function PaymentPanel({ procurementId, demoMode }) {
     catch { setError('Status pembayaran belum bisa dimuat.'); }
   }, [procurementId]);
   useEffect(() => { refresh(); const poll = setInterval(refresh, 5000); const clock = setInterval(() => setNow(Date.now()), 30000); return () => { clearInterval(poll); clearInterval(clock); }; }, [refresh]);
-  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7" aria-label="Pembayaran per supplier">
+  return <section className="app-panel p-5 sm:p-7" aria-label="Pembayaran per supplier">
     <h3 className="font-bold text-slate-900">Pembayaran per supplier</h3>
     <p className="mt-1 text-sm text-slate-500">Setiap supplier memiliki tagihan dan status pengiriman sendiri. Status diperbarui otomatis.</p>
     {error && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}

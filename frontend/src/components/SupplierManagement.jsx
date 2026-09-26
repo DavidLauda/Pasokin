@@ -97,15 +97,15 @@ export default function SupplierManagement() {
   };
 
   return <section className="space-y-5 pb-16">
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6">
-      <div><h2 className="text-xl font-extrabold">Manajemen Supplier</h2><p className="mt-1 text-sm text-slate-500">{formatNumber(suppliers.length)} supplier terdaftar</p></div>
+    <div className="app-panel flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
+      <div><p className="section-eyebrow">Jaringan mitra</p><h2 className="mt-1 text-lg font-bold">Direktori supplier</h2><p className="mt-1 text-sm text-slate-500">{formatNumber(suppliers.length)} supplier terdaftar</p></div>
       <div className="flex flex-wrap gap-2">
-        <a href="/daftar-supplier" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Portal supplier</a>
-        <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" /> Tambah Supplier</button>
+        <a href="/daftar-supplier" target="_blank" rel="noreferrer" className="app-secondary-button">Portal supplier</a>
+        <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="app-primary-button"><Plus className="h-4 w-4" /> Tambah Supplier</button>
       </div>
     </div>
 
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="app-panel grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
       <label className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><span className="sr-only">Cari supplier</span>
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Cari nama, lokasi…" className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm" /></label>
       <label className="relative"><span className="sr-only">Filter kategori</span><select value={category} onChange={event => setCategory(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Semua kategori</option>{categories.map(item => <option key={item}>{item}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" /></label>
@@ -113,8 +113,8 @@ export default function SupplierManagement() {
       <label className="relative"><span className="sr-only">Urutkan supplier</span><select value={sort} onChange={event => setSort(event.target.value)} className="w-full appearance-none rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="name">Nama A–Z</option><option value="reliability">Reliability tertinggi</option><option value="recent">Terbaru</option></select><ChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" /></label>
     </div>
 
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-      <table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-4">Supplier</th><th className="px-5 py-4">Kategori</th><th className="px-5 py-4">Lokasi</th><th className="px-5 py-4">Verifikasi</th><th className="px-5 py-4 text-right">Reliability</th></tr></thead>
+    <div className="app-panel overflow-x-auto">
+      <table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-slate-200 bg-[#f8fafa] text-[11px] font-bold uppercase tracking-[.08em] text-slate-500"><tr><th className="px-5 py-4">Supplier</th><th className="px-5 py-4">Kategori</th><th className="px-5 py-4">Lokasi</th><th className="px-5 py-4">Verifikasi</th><th className="px-5 py-4 text-right">Reliability</th></tr></thead>
         <tbody className="divide-y divide-slate-100">{loading ? <tr><td colSpan="5" className="px-5 py-10 text-center text-slate-500">Memuat supplier…</td></tr>
           : visible.length === 0 ? <tr><td colSpan="5" className="px-5 py-10 text-center text-slate-500">Tidak ada supplier yang cocok.</td></tr>
           : visible.map(item => <tr key={item.id} onClick={() => setSelectedId(item.id)} onKeyDown={event => { if (event.key === 'Enter') setSelectedId(item.id); }} tabIndex={0} className="cursor-pointer hover:bg-slate-50 focus:bg-teal-50">

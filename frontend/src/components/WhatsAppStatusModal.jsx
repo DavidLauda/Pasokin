@@ -55,9 +55,9 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200">
-                <div className="bg-slate-900 px-6 py-4">
-                    <h2 className="text-lg font-semibold text-white">Status Dispatch WhatsApp</h2>
+            <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                <div className="border-b border-slate-200 bg-[#f9fbfb] px-6 py-4">
+                    <h2 className="text-lg font-bold text-slate-900">Status pengiriman WhatsApp</h2>
                 </div>
                 
                 <div className="p-6">
@@ -71,6 +71,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
                                 {' '}(scan QR di sana, bukan di aplikasi ini), lalu tutup jendela ini dan coba lagi.
                             </p>
                             {waStatus.error && <p className="text-xs text-red-500 bg-red-50 px-3 py-1.5 rounded-lg">{waStatus.error}</p>}
+                            <button type="button" onClick={onClose} className="app-secondary-button mt-2">Tutup</button>
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -86,7 +87,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
                                 <ul className="divide-y divide-slate-100 max-h-60 overflow-y-auto bg-white">
                                     {dispatchStatus === 'dispatching' && results.length === 0 ? (
                                         <li className="px-4 py-8 text-center text-slate-500 flex flex-col items-center gap-3">
-                                            <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+                                            <Loader2 className="h-8 w-8 animate-spin text-teal-700" />
                                             <span className="text-sm">Sedang memproses antrean pesan...</span>
                                         </li>
                                     ) : results.length > 0 ? (
@@ -128,7 +129,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
                                 <button
                                     onClick={onClose}
                                     disabled={dispatchStatus === 'dispatching'}
-                                    className="px-6 py-2 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm"
+                                    className="app-primary-button disabled:opacity-50"
                                 >
                                     {dispatchStatus === 'done' && successfulCount > 0 ? 'Lihat Detail Pengadaan' : 'Tutup'}
                                 </button>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Wallet, Calendar, Scale, Loader2, ChevronDown, ChevronUp, Sparkles, X, Check, Edit3, MessageSquare } from 'lucide-react';
+import { Package, Wallet, Calendar, Loader2, ChevronDown, ChevronUp, Sparkles, X, Check, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 import WhatsAppStatusModal from './WhatsAppStatusModal';
@@ -70,8 +70,6 @@ export default function RequirementForm({ onConfirm }) {
     };
 
     const getTodayStr = () => new Date().toISOString().split('T')[0];
-
-    const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
 
     const findDeliveryLocation = async () => {
         if (deliveryAddress.trim().length < 10) return;
@@ -225,31 +223,28 @@ export default function RequirementForm({ onConfirm }) {
     };
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="mx-auto w-full max-w-2xl">
             <datalist id="rfq-unit-suggestions">
                 {['kg', 'ton', 'sak', 'lembar', 'batang', 'meter', 'pcs', 'dus', 'karung'].map(item =>
                     <option key={item} value={item} />)}
             </datalist>
             {/* Header */}
-            <div className="text-center mb-8">
-                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                    Apa yang kamu butuhkan?
-                </h2>
-                <p className="text-slate-500 mt-2 font-medium">
-                    Tulis dalam bahasa natural, AI kami yang urus sisanya.
-                </p>
+            <div className="mb-7 border-b border-slate-100 pb-6">
+                <p className="section-eyebrow mb-2">Langkah 01 / kebutuhan material</p>
+                <h2 className="text-[23px] font-bold tracking-[-.035em] text-slate-900">Ceritakan kebutuhan Anda</h2>
+                <p className="mt-2 text-sm text-slate-500">Tulis permintaan dalam bahasa sehari-hari atau isi rincian secara manual.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Natural Language Input */}
                 {!showManualForm && (
-                    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#fbfcfc] focus-within:border-teal-500 focus-within:ring-3 focus-within:ring-teal-500/10">
                         <textarea
                             value={rawInput}
                             onChange={(e) => setRawInput(e.target.value)}
                             placeholder="Butuh baja ringan 10.000 kg, budget 300 juta, dikirim minggu depan"
                             rows={4}
-                            className="w-full p-6 text-lg font-medium text-slate-900 placeholder:text-slate-400 resize-none focus:outline-none focus:ring-0 border-0"
+                            className="w-full resize-none border-0 bg-transparent p-5 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                         />
                     </div>
                 )}
@@ -268,7 +263,7 @@ export default function RequirementForm({ onConfirm }) {
 
                 {/* Manual Form */}
                 {showManualForm && (
-                    <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6 space-y-5">
+                    <div className="space-y-5 rounded-xl border border-slate-200 bg-[#fbfcfc] p-5">
                         <div>
                             <label className="block text-sm font-bold text-slate-600 mb-1.5">Nama Material</label>
                             <div className="relative">
@@ -345,21 +340,21 @@ export default function RequirementForm({ onConfirm }) {
                 </div>
 
                 {/* Priority Buttons */}
-                <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6">
-                    <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4">Prioritas</h3>
-                    <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-5">
+                    <h3 className="mb-4 text-xs font-bold uppercase tracking-[.1em] text-slate-600">Prioritas pengadaan</h3>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <button type="button" onClick={() => setPriority('cost')}
-                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'cost' ? 'border-teal-400 bg-teal-50 text-teal-700 shadow-md shadow-teal-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                            className={`rounded-lg border px-3 py-3 text-xs font-bold transition-colors ${priority === 'cost' ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
                         >
                             Prioritaskan Biaya
                         </button>
                         <button type="button" onClick={() => setPriority('speed')}
-                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'speed' ? 'border-teal-400 bg-teal-50 text-teal-700 shadow-md shadow-teal-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                            className={`rounded-lg border px-3 py-3 text-xs font-bold transition-colors ${priority === 'speed' ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
                         >
                             Prioritaskan Kecepatan
                         </button>
                         <button type="button" onClick={() => setPriority('balanced')}
-                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'balanced' ? 'border-teal-400 bg-teal-50 text-teal-700 shadow-md shadow-teal-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                            className={`rounded-lg border px-3 py-3 text-xs font-bold transition-colors ${priority === 'balanced' ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
                         >
                             Seimbang
                         </button>
@@ -368,7 +363,7 @@ export default function RequirementForm({ onConfirm }) {
 
                 {/* Submit */}
                 <button type="submit" disabled={isLoading}
-                    className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-2xl shadow-xl shadow-teal-500/20 text-base font-extrabold text-white bg-teal-400 hover:bg-teal-500 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200"
+                    className="app-primary-button w-full py-3.5 text-sm disabled:opacity-50"
                 >
                     {isLoading ? (
                         <><Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> AI sedang menganalisis...</>
@@ -381,7 +376,7 @@ export default function RequirementForm({ onConfirm }) {
             {/* AI Summary Popup - Editable */}
             {showSummary && parsedRequirement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden border border-slate-200">
+                    <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                                 <Sparkles className="h-5 w-5 text-teal-500" />
@@ -466,7 +461,7 @@ export default function RequirementForm({ onConfirm }) {
                                 <X className="h-4 w-4" /> Batal
                             </button>
                             <button type="button" onClick={handleConfirm}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-teal-400 hover:bg-teal-500 text-white font-extrabold rounded-xl shadow-lg shadow-teal-500/20 transition-all"
+                                className="app-primary-button"
                             >
                                 <Check className="h-4 w-4" /> Konfirmasi & Kirim
                             </button>

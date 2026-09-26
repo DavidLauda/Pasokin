@@ -3,8 +3,8 @@ import client from '../api/client';
 import SupplierLocationPicker from './SupplierLocationPicker';
 
 const COMMON_CATEGORIES = ['Semen', 'Pasir', 'Besi', 'Baja Ringan', 'Batu Split', 'Beton', 'Kayu', 'Bata', 'Keramik'];
-const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-600 focus:outline-none';
-const labelClass = 'mb-1 block text-sm font-semibold text-slate-700';
+const inputClass = 'app-input text-sm';
+const labelClass = 'app-label';
 
 function initialData(supplier) {
   return {
@@ -117,7 +117,7 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel, selfS
   return <form onSubmit={save} className="space-y-5">
     <ol className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
       {['Identitas', 'Lokasi & suplai', 'Verifikasi'].map((title, index) =>
-        <li key={title} className={`rounded-lg px-2 py-2 ${index === step ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+        <li key={title} className={`rounded-lg border px-2 py-2 ${index === step ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-200 bg-[#f8fafa] text-slate-500'}`}>
           {index + 1}. {title}
         </li>)}
     </ol>
@@ -133,7 +133,7 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel, selfS
             <input type="checkbox" className="sr-only" checked={form.categories.includes(category)} onChange={() => toggleCategory(category)} />{category}
           </label>)}</div>
         <div className="mt-3 flex gap-2"><input className={inputClass} value={extraCategory} onChange={event => setExtraCategory(event.target.value)} placeholder="Kategori lain" />
-          <button type="button" onClick={() => { if (extraCategory.trim()) { toggleCategory(extraCategory.trim()); setExtraCategory(''); } }} className="rounded-xl border border-slate-300 px-3 text-sm font-semibold">Tambah</button></div>
+          <button type="button" onClick={() => { if (extraCategory.trim()) { toggleCategory(extraCategory.trim()); setExtraCategory(''); } }} className="app-secondary-button">Tambah</button></div>
       </fieldset>
     </div>}
 
@@ -173,12 +173,12 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel, selfS
     {error && <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</p>}
     <div className="flex flex-wrap justify-between gap-3 border-t border-slate-200 pt-4">
       <div className="flex gap-2">
-        {step > 0 && <button type="button" onClick={() => { setStep(value => value - 1); setError(''); }} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Kembali</button>}
+        {step > 0 && <button type="button" onClick={() => { setStep(value => value - 1); setError(''); }} className="app-secondary-button">Kembali</button>}
         {onCancel && <button type="button" onClick={onCancel} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500">Batal</button>}
       </div>
       {step < 2
-        ? <button type="button" onClick={next} className="rounded-xl bg-teal-700 px-5 py-2 text-sm font-bold text-white">Lanjut</button>
-        : <button type="submit" disabled={saving} className="rounded-xl bg-teal-700 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Menyimpan…' : supplier ? 'Simpan perubahan' : 'Daftar sebagai supplier'}</button>}
+        ? <button type="button" onClick={next} className="app-primary-button">Lanjut</button>
+        : <button type="submit" disabled={saving} className="app-primary-button disabled:opacity-50">{saving ? 'Menyimpan…' : supplier ? 'Simpan perubahan' : 'Daftar sebagai supplier'}</button>}
     </div>
   </form>;
 }

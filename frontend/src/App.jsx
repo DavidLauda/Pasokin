@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import { Bot, Cpu, LogOut } from 'lucide-react';
+import { Activity, Building2, Cpu, FilePlus2, History, LayoutGrid, LogOut, Radio, UsersRound } from 'lucide-react';
 import NewProcurementPage from './components/NewProcurementPage';
 import OptimizationDashboard from './components/OptimizationDashboard';
 import SupplierManagement from './components/SupplierManagement';
@@ -8,12 +8,29 @@ import TransactionHistory from './components/TransactionHistory';
 import ActiveProcurements from './components/ActiveProcurements';
 import ProcurementDetail from './components/ProcurementDetail';
 import client from './api/client';
+import BrandMark from './components/BrandMark';
+
+const pageMeta = {
+  input: ['Pengadaan Baru', 'Buat permintaan material dan temukan supplier yang tepat.'],
+  active: ['Pengadaan Aktif', 'Pantau seluruh permintaan dan respons supplier.'],
+  detail: ['Detail Pengadaan', 'Lihat progres, alokasi, dan percakapan dalam satu tempat.'],
+  dashboard: ['Alur Pengadaan', 'Tinjau balasan supplier dan hasil alokasi.'],
+  suppliers: ['Manajemen Supplier', 'Kelola jaringan dan performa mitra supplier.'],
+  history: ['Riwayat Transaksi', 'Telusuri pengadaan yang telah selesai.']
+};
+
+const navigation = [
+  { id: 'input', label: 'Pengadaan Baru', icon: FilePlus2 },
+  { id: 'active', label: 'Pengadaan Aktif', icon: LayoutGrid },
+  { id: 'suppliers', label: 'Manajemen Supplier', mobileLabel: 'Supplier', icon: UsersRound },
+  { id: 'history', label: 'Riwayat Transaksi', mobileLabel: 'Riwayat', icon: History }
+];
 
 function App({ user, onLogout }) {
   const [appState, setAppState] = useState('input');
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [selectedProcurementId, setSelectedProcurementId] = useState(null);
-    const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [health, setHealth] = useState({ status: 'unknown', demoMode: false });
 
   useEffect(() => {
@@ -112,111 +129,49 @@ function App({ user, onLogout }) {
       const res = await client.post('/settings/demo-mode', { demoMode: newMode });
       setHealth(prev => ({ ...prev, demoMode: res.data.demoMode }));
       toast.success(res.data.demoMode ? "Mode Simulasi Aktif" : "Mode Live WhatsApp Aktif");
-    } catch (err) {
+    } catch {
       toast.error("Gagal mengubah mode");
     }
   };
 
+  const [pageTitle, pageDescription] = pageMeta[appState] || pageMeta.input;
+  const isSelected = id => id === 'active' ? ['active', 'detail', 'dashboard'].includes(appState) : appState === id;
+
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900 selection:bg-teal-200">
-      <Toaster position="bottom-right" toastOptions={{ style: { borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' } }} />
+    <div className="pasokin-ui flex min-h-screen bg-[#f5f7f8] text-slate-900 selection:bg-teal-100 md:h-screen md:overflow-hidden">
+      <Toaster position="bottom-right" toastOptions={{ style: { borderRadius: '12px', background: '#fff', color: '#162637', border: '1px solid #dce4e8', boxShadow: '0 18px 44px rgba(17, 40, 52, 0.13)' } }} />
 
-      {/* Abstract Glow Background */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-60 z-0">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-slate-200 blur-[120px]"></div>
-          <div className="absolute top-[40%] right-[10%] w-[40%] h-[50%] rounded-full bg-slate-300 blur-[120px]"></div>
-      </div>
-
-      {/* LEFT SIDEBAR */}
-      <aside className="relative z-10 w-64 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col hidden md:flex shadow-sm">
-        <div className="h-20 flex items-center px-6 border-b border-slate-100">
-            <div className="bg-teal-700 p-2 rounded-xl shadow-sm mr-3">
-                <Bot className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-extrabold text-slate-900 tracking-tight">Pasokin</span>
-            <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded">Beta</span>
+      <aside className="app-sidebar hidden w-[254px] shrink-0 flex-col md:flex">
+        <div className="px-6 pb-8 pt-7"><BrandMark inverted /><p className="ml-[45px] mt-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Procurement workspace</p></div>
+        <div className="px-4"><p className="px-3 pb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Workspace</p>
+          <nav className="space-y-1" aria-label="Menu utama">{navigation.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setAppState(id)} aria-current={isSelected(id) ? 'page' : undefined}
+            className={`app-nav-item ${isSelected(id) ? 'app-nav-item-active' : ''}`}><Icon size={18} strokeWidth={1.9} /><span>{label}</span>{isSelected(id) && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-teal-300" />}</button>)}</nav>
         </div>
-
-        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-            <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'input' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState === 'input' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
-                Pengadaan Baru
-            </a>
-            <a href="#" onClick={(e) => {
-                e.preventDefault();
-                setAppState('active');
-            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'detail', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${['active', 'detail', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
-                Pengadaan Aktif
-            </a>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
-                Manajemen Supplier
-            </a>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('history');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'history' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState === 'history' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
-                Riwayat Transaksi
-            </a>
-
-        </div>
-
-        <div className="p-4 mb-4 mx-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <h4 className="text-slate-800 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Cpu className="h-3 w-3 text-slate-500"/> Pembaruan AI</h4>
-            <p className="text-slate-500 text-xs leading-relaxed">Model negosiasi v2.1 sekarang aktif. Evaluasi harga 30% lebih akurat.</p>
+        <div className="mt-auto p-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="flex items-center gap-2 text-xs font-semibold text-slate-200"><Activity size={15} className="text-teal-300" />Status sistem</div><p className="mt-2 text-xs leading-relaxed text-slate-400">{health.status === 'ok' ? 'Layanan terhubung dan siap digunakan.' : 'Memeriksa koneksi layanan…'}</p></div>
+          <p className="px-2 pt-5 text-[11px] text-slate-500">© {new Date().getFullYear()} Pasokin</p>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
-        
-        <header className="relative z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md md:h-20 md:px-8">
-            <div className="flex items-center gap-4">
-                <h1 className="text-lg font-extrabold text-slate-900 md:text-2xl">
-                    {appState === 'detail' ? 'Detail Pengadaan' :
-                     appState === 'active' ? 'Pengadaan Aktif' :
-                     appState === 'input' ? 'Pengadaan Baru' :
-                     appState === 'dashboard' ? 'Dashboard Pengadaan' :
-                     appState === 'suppliers' ? 'Manajemen Supplier' :
-                     appState === 'history' ? 'Riwayat Transaksi' : 'Dashboard'}
-                </h1>
-            </div>
-            
-            <div className="flex items-center gap-4">
-                <button 
-                  onClick={toggleDemoMode}
-                  className="relative hidden w-[180px] rounded-full border border-slate-200 bg-slate-100 p-1 shadow-inner sm:flex"
-                >
-                  <div className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 shadow-sm ${health.demoMode ? 'translate-x-0 bg-amber-400' : 'translate-x-[100%] bg-emerald-400'}`}></div>
-                  <div className={`relative z-10 flex-1 text-center py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${health.demoMode ? 'text-white' : 'text-slate-500'}`}>
-                      <Cpu className="h-3 w-3" /> Simulasi
-                  </div>
-                  <div className={`relative z-10 flex-1 text-center py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${!health.demoMode ? 'text-white' : 'text-slate-500'}`}>
-                      <Bot className="h-3 w-3" /> Live
-                  </div>
-                </button>
-                <div title={user.email} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 font-bold text-slate-600 shadow-sm md:h-10 md:w-10">
-                    {user.name?.slice(0, 2).toUpperCase() || 'BY'}
-                </div>
-                <button type="button" onClick={onLogout} title="Keluar" className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Keluar</span></button>
-            </div>
+      <main className="flex min-w-0 flex-1 flex-col md:overflow-hidden">
+        <header className="app-topbar flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 md:px-9 md:py-5">
+          <div className="flex min-w-0 items-center gap-4"><div className="md:hidden"><BrandMark compact /></div><div className="hidden h-9 w-px bg-slate-200 md:block" /><div className="hidden md:block"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Buyer workspace</p><p className="mt-0.5 text-sm font-bold text-slate-800">{pageTitle}</p></div></div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button type="button" onClick={toggleDemoMode} aria-label={`Mode saat ini ${health.demoMode ? 'Simulasi' : 'Live'}. Ubah mode`} className={`app-mode-button ${health.demoMode ? 'app-mode-sim' : 'app-mode-live'}`}><span className="app-mode-dot" />{health.demoMode ? <Cpu size={14} /> : <Radio size={14} />}<span>{health.demoMode ? 'Simulasi' : 'Live'}</span></button>
+            <div className="hidden h-8 w-px bg-slate-200 sm:block" />
+            <div title={user.email} className="flex items-center gap-2.5"><span className="app-avatar">{user.name?.slice(0, 2).toUpperCase() || 'BY'}</span><span className="hidden max-w-36 truncate text-xs font-semibold text-slate-700 lg:block">{user.name || user.email}</span></div>
+            <button type="button" onClick={onLogout} title="Keluar" className="app-icon-button" aria-label="Keluar"><LogOut size={17} /></button>
+          </div>
         </header>
 
-        <nav className="flex flex-shrink-0 gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 md:hidden" aria-label="Menu utama">
-          {[
-            ['input', 'Pengadaan Baru'], ['active', 'Pengadaan Aktif'],
-            ['suppliers', 'Supplier'], ['history', 'Riwayat']
-          ].map(([value, label]) => {
-            const selected = value === 'active' ? ['active', 'detail', 'dashboard'].includes(appState) : appState === value;
-            return <button key={value} type="button" onClick={() => setAppState(value)} aria-current={selected ? 'page' : undefined}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${selected ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
-              {label}
-            </button>;
-          })}
+        <nav className="grid shrink-0 grid-cols-2 gap-1 border-b border-slate-200 bg-white px-3 py-2 md:hidden" aria-label="Menu utama">
+          {navigation.map(({ id, label, mobileLabel, icon: Icon }) => <button key={id} type="button" onClick={() => setAppState(id)} aria-current={isSelected(id) ? 'page' : undefined}
+            className={`flex min-w-0 items-center gap-1.5 rounded-lg px-3 py-2 text-left text-xs font-semibold ${isSelected(id) ? 'bg-teal-50 text-teal-800' : 'text-slate-500'}`}><Icon size={15} className="shrink-0" /><span className="truncate">{mobileLabel || label}</span></button>)}
         </nav>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
-            <div className="max-w-[1600px] mx-auto space-y-8">
+        <div className="flex-1 overflow-y-auto px-4 pb-10 pt-6 sm:px-6 md:px-9 md:pt-8">
+            <div className="mx-auto max-w-[1500px] space-y-7">
+                <div className="page-heading"><div><p className="section-eyebrow">Pasokin / {appState === 'detail' || appState === 'dashboard' ? 'Pengadaan Aktif / ' : ''}{pageTitle}</p><h1 className="page-title">{pageTitle}</h1><p className="page-description">{pageDescription}</p></div><div className="page-heading-mark" aria-hidden="true"><Building2 size={22} strokeWidth={1.6} /></div></div>
                 
                 {/* Active procurement monitoring */}
                 {appState === 'active' && (

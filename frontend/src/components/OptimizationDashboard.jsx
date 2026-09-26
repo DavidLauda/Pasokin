@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Sparkles, RotateCcw, CheckCircle, AlertTriangle, Clock, ExternalLink, Check, Send, Loader2 } from 'lucide-react';
+import { Sparkles, RotateCcw, CheckCircle, AlertTriangle, Clock, ExternalLink, Check, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 
-const COLORS = ['#f59e0b', '#8b5cf6', '#0ea5e9', '#10b981', '#ef4444'];
+const COLORS = ['#087f79', '#29688b', '#63a49e', '#7897a8', '#a7c5c2'];
 
 export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted }) {
     const [allocations, setAllocations] = useState([]);
@@ -137,7 +137,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                 procurement_id: data.dispatch_id });
             toast.success("Simulasi berhasil", { id: toastId });
             fetchReplies();
-        } catch (err) {
+        } catch {
             toast.error("Gagal simulasi", { id: toastId });
         }
     };
@@ -152,7 +152,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
             await client.post('/wa-replies/simulate-all', { procurement_id: data.dispatch_id });
             toast.success("Simulasi batch selesai!", { id: toastId });
             fetchReplies();
-        } catch (err) {
+        } catch {
             toast.error("Gagal simulasi batch", { id: toastId });
         }
     };
@@ -163,7 +163,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
             setConfirmedSuppliers(prev => [...prev, reply.supplier_id || reply.phone]);
             toast.success("Supplier dikonfirmasi");
             fetchReplies();
-        } catch (e) {
+        } catch {
             toast.error("Gagal mengkonfirmasi");
         }
     };
@@ -204,7 +204,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
             const rejectedCount = res.data.results.filter(r => r.decision === 'rejected').length;
             toast.success(`PO terkirim ke ${wonCount} supplier, penolakan terkirim ke ${rejectedCount} supplier.`, { id: toastId });
             onFinalSubmitted?.();
-        } catch (err) {
+        } catch {
             setIsFinalSubmitted(false);
             toast.error("Gagal mengirim keputusan akhir", { id: toastId });
         }
@@ -240,13 +240,13 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto space-y-8 pb-20">
+        <div className="mx-auto w-full max-w-5xl space-y-5 pb-20">
             
             {/* Section 1: AI Analysis */}
-            <div className="bg-white border border-slate-200 rounded-[2rem] p-8 flex gap-5 shadow-xl shadow-slate-200/50">
+            <div className="app-panel flex gap-5 p-6 sm:p-8">
                 <div className="flex-shrink-0 mt-1">
-                    <div className="bg-amber-400 p-3 rounded-2xl shadow-sm">
-                        <Sparkles className="h-6 w-6 text-slate-900" />
+                    <div className="rounded-xl bg-teal-50 p-3">
+                        <Sparkles className="h-6 w-6 text-teal-700" />
                     </div>
                 </div>
                 <div>
@@ -265,9 +265,9 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
 
             {/* Section 2: Allocation Percentage Chart */}
             {hasConfirmedSuppliers && (
-                <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                <div className="app-panel p-6 sm:p-8">
                     <h3 className="text-base font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-                        <div className="w-2 h-6 bg-amber-400 rounded-full"></div> Persentase Alokasi
+                        <div className="h-5 w-1 rounded-full bg-teal-700"></div> Persentase Alokasi
                     </h3>
                     <div className="h-72">
                         <ResponsiveContainer width="100%" height="100%">
@@ -286,12 +286,12 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
             )}
 
             {/* Section 3: Allocation Recommendation Table */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div className="app-panel overflow-hidden">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-[#f9fbfb] px-6 py-5 sm:px-8">
                     <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                        <div className="w-2 h-6 bg-amber-400 rounded-full"></div> Rekomendasi Alokasi
+                        <div className="h-5 w-1 rounded-full bg-teal-700"></div> Rekomendasi Alokasi
                     </h3>
-                    <button onClick={resetAllocations} className="text-sm font-bold text-slate-400 hover:text-amber-500 flex items-center gap-1.5 transition-colors">
+                    <button onClick={resetAllocations} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 transition-colors hover:text-teal-700">
                         <RotateCcw className="h-4 w-4" /> Reset ke AI
                     </button>
                 </div>
@@ -327,7 +327,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {activeAllocations.map((a, i) => (
+                                    {activeAllocations.map(a => (
                                         <tr key={a.supplier_id || a.phone} className="hover:bg-slate-50/50">
                                             <td className="px-6 py-4">
                                                 <p className="font-semibold text-slate-800">{a.name}{a.verification_status === 'verified' && <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Verified</span>}</p>
@@ -359,7 +359,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                         </div>
                         <div className="p-6 border-t border-slate-100 flex justify-end">
                             <button onClick={handleFinalSubmit} disabled={!isSumValid || isFinalSubmitted}
-                                className="flex items-center gap-2 px-8 py-3 bg-amber-400 text-white text-sm font-extrabold rounded-full shadow-lg shadow-amber-500/20 hover:bg-amber-500 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                className="app-primary-button disabled:opacity-50"
                             >
                                 <Send className="h-4 w-4" /> {isFinalSubmitted ? 'PO Sudah Dikirim' : 'Konfirmasi & Kirim PO'}
                             </button>
@@ -369,22 +369,22 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
             </div>
 
             {/* Section 4: Supplier Replies */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-100 bg-slate-50">
+            <div className="app-panel overflow-hidden">
+                <div className="border-b border-slate-100 bg-[#f9fbfb] px-6 py-5 sm:px-8">
                     <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
-                        <div className="w-2 h-6 bg-amber-400 rounded-full"></div> Balasan Supplier
+                        <div className="h-5 w-1 rounded-full bg-teal-700"></div> Balasan Supplier
                     </h3>
                     <p className="text-sm text-slate-500 font-medium mt-1">AI membaca & mengklasifikasi tiap balasan WhatsApp secara otomatis.</p>
                 </div>
 
                 {/* Demo Simulator */}
                 {demoMode && (
-                    <div className="px-8 py-4 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between">
-                        <span className="text-xs font-bold text-amber-600">[DEV] Simulator Balasan</span>
-                        <div className="flex gap-2">
-                            <button onClick={handleSimulateAll} className="px-4 py-1.5 text-xs font-bold bg-indigo-500 text-white rounded-full hover:bg-indigo-600 transition-all shadow-sm">Simulasi Semua (Batched)</button>
-                            <button onClick={() => handleSimulate('confirmed')} className="px-4 py-1.5 text-xs font-bold bg-emerald-500 text-white rounded-full hover:bg-emerald-600 transition-all">Sesuai</button>
-                            <button onClick={() => handleSimulate('negotiate')} className="px-4 py-1.5 text-xs font-bold bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all">Nego</button>
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 sm:px-8">
+                        <span className="text-xs font-bold text-slate-600">Simulator balasan</span>
+                        <div className="flex flex-wrap gap-2">
+                            <button onClick={handleSimulateAll} className="app-secondary-button">Simulasi semua</button>
+                            <button onClick={() => handleSimulate('confirmed')} className="app-secondary-button">Sesuai</button>
+                            <button onClick={() => handleSimulate('negotiate')} className="app-secondary-button">Nego</button>
                         </div>
                     </div>
                 )}
@@ -424,7 +424,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                                             
                                             {needsAction && (
                                                 <button onClick={() => handleManualConfirm(reply)}
-                                                    className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm font-bold text-white bg-amber-400 hover:bg-amber-500 rounded-full shadow-sm transition-all"
+                                                    className="app-primary-button py-1.5"
                                                 >
                                                     <Check className="h-3.5 w-3.5" /> Confirm
                                                 </button>
