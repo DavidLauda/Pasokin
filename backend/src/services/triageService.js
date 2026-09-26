@@ -47,10 +47,14 @@ async function classifySupplierReply(requirementSnapshot, allocationSnapshot, re
                 requirementSnapshot, allocationSnapshot, replyText, dispatchedAt
             );
         }
+        const triageToken = process.env.TRIAGE_SHARED_TOKEN;
         const response = await axios.post(
             `${TRIAGE_SERVICE_URL}/triage`,
             { text_input: textInput },
-            { timeout: 90000 }
+            {
+                timeout: 90000,
+                ...(triageToken ? { headers: { 'X-Pasokin-Triage-Token': triageToken } } : {})
+            }
         );
 
         const { classification, ai_summary, ai_extracted } = response.data;

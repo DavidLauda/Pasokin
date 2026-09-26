@@ -122,10 +122,11 @@ Loading pertama dapat memerlukan waktu dan ruang disk yang besar karena base mod
 Jika backend dijalankan di luar Docker dari folder `backend`, isi `TRIAGE_SERVICE_URL=http://localhost:8001` di `backend/.env`. Docker Compose mengatur alamat service ini secara otomatis ke `http://triage-service:8001`.
 Untuk backend yang di-deploy (misalnya Vercel), isi `TRIAGE_SERVICE_URL` dengan URL service Gemma yang dapat dijangkau dari backend. Jika service belum hidup, balasan supplier akan masuk ke review manual.
 
+Untuk menjalankan Gemma di Hugging Face Docker Space dan menghubungkannya ke backend Vercel, ikuti [panduan deploy Space](triage-service/HF_SPACE_DEPLOY.md). Paket tersebut memakai `adapter_v2` dan melindungi `POST /triage` dengan `TRIAGE_SHARED_TOKEN`. Kunci ini hanya disimpan sebagai secret di Space dan environment backend, tidak di frontend.
+
 ### Model Fine-Tuning (Kepatuhan Kompetisi)
 
 Sesuai dengan syarat kompetisi *"Model wajib di fine tune sesuai dengan inovasi fitur per tim"*, kami telah menyiapkan dataset dan pipeline fine-tuning di dalam direktori `/model-tuning`. 
 
 Dataset `dataset_triage.jsonl` digunakan untuk fine-tuning model triage Gemma 2B dengan adapter LoRA. Adapter hasil training disimpan di `/triage-service/adapter` dan dipakai oleh service FastAPI dalam kedua mode. Jika Gemma belum tersedia, balasan ditandai perlu review manual.
-
 

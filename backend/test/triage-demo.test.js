@@ -41,6 +41,37 @@ test('Gemma outage needs manual review instead of simulated AI confirmation', as
     assert.equal(result.ai_extracted, null);
 });
 
+test('Gemma request authenticates to hosted triage service when a shared token is configured', async t => {
+    const previousToken = process.env.TRIAGE_SHARED_TOKEN;
+    process.env.TRIAGE_SHARED_TOKEN = 'test-only-shared-token';
+    t.after(() => { if (previousToken === undefined) delete process.env.TRIAGE_SHARED_TOKEN; else process.env.TRIAGE_SHARED_TOKEN = previousToken; });
+    let requestConfig;
+    t.mock.method(axios, 'post', async (_url, _body, config) => {
+        requestConfig = config;
+        return { data: { classification: 'confirmed', ai_summary: 'OK', ai_extracted: {} } };
+    });
+
+    await triageService.classifySupplierReply(requirement, allocation, 'Kami setuju');
+
+    assert.equal(requestConfig.headers['X-Pasokin-Triage-Token'], 'test-only-shared-token');
+    assert.equal(requestConfig.timeout, 90000);
+});
+
+test('local Gemma request remains usable without a shared token', async t => {
+    const previousToken = process.env.TRIAGE_SHARED_TOKEN;
+    delete process.env.TRIAGE_SHARED_TOKEN;
+    t.after(() => { if (previousToken === undefined) delete process.env.TRIAGE_SHARED_TOKEN; else process.env.TRIAGE_SHARED_TOKEN = previousToken; });
+    let requestConfig;
+    t.mock.method(axios, 'post', async (_url, _body, config) => {
+        requestConfig = config;
+        return { data: { classification: 'confirmed', ai_summary: 'OK', ai_extracted: {} } };
+    });
+
+    await triageService.classifySupplierReply(requirement, allocation, 'Kami setuju');
+
+    assert.equal(requestConfig.headers, undefined);
+});
+
 test('Gemini selection processes supplier replies without calling Gemma', async t => {
     t.mock.method(axios, 'post', async () => { throw new Error('Gemma must not run'); });
     t.mock.method(geminiTriageService, 'classifySupplierReply', async () => ({

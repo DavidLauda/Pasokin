@@ -20,11 +20,12 @@ import json
 import logging
 import os
 import re
+import secrets
 from datetime import datetime
 
 import torch
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
@@ -36,7 +37,7 @@ logger = logging.getLogger("pasokin-triage")
 load_dotenv()
 
 BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "google/gemma-2b-it")
-ADAPTER_PATH = os.environ.get("ADAPTER_PATH", "./adapter")
+ADAPTER_PATH = os.environ.get("ADAPTER_PATH", "./adapter_v2")
 USE_4BIT = os.environ.get("USE_4BIT", "auto")  # "auto" | "true" | "false"
 
 SYSTEM_INSTRUCTION = (
@@ -79,6 +80,9 @@ def _resolve_use_4bit() -> bool:
 @app.on_event("startup")
 def load_model():
     global _model, _tokenizer
+
+    if os.environ.get("TRIAGE_REQUIRE_AUTH", "false").lower() == "true" and not os.environ.get("TRIAGE_SHARED_TOKEN"):
+        raise RuntimeError("TRIAGE_SHARED_TOKEN wajib diisi saat TRIAGE_REQUIRE_AUTH=true")
 
     cuda_available = torch.cuda.is_available()
     use_4bit = _resolve_use_4bit()
@@ -403,7 +407,10 @@ def _apply_triage_guardrail(parsed: dict, text_input: str) -> dict:
 
 
 @app.post("/triage", response_model=TriageResponse)
-def triage(req: TriageRequest):
+def triage(req: TriageRequest, x_pasokin_triage_token: str | None = Header(default=None)):
+    expected_token = os.environ.get("TRIAGE_SHARED_TOKEN")
+    if expected_token and (not x_pasokin_triage_token or not secrets.compare_digest(x_pasokin_triage_token, expected_token)):
+        raise HTTPException(status_code=401, detail="Akses triage ditolak.")
     if _model is None or _tokenizer is None:
         raise HTTPException(status_code=503, detail="Model belum selesai dimuat.")
 

@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 # Adapter hasil training (adapter_model.safetensors, adapter_config.json, tokenizer files)
 # ditaruh di folder ./adapter sebelum build, atau di-mount lewat volume saat runtime.
-COPY adapter ./adapter
+COPY adapter_v2 ./adapter_v2
 
 EXPOSE 8001
 
