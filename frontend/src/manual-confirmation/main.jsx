@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import client from '../api/client';
 import { clearSession, getSession } from '../api/client';
 import AuthPage from '../components/AuthPage';
+import BrandMark from '../components/BrandMark';
 import '../index.css';
 
 function errorText(error) {
@@ -83,32 +84,32 @@ function ManualConfirmationPage({ onLogout }) {
     message.supplier_id === latestOutbound.supplier_id && message.created_at >= latestOutbound.created_at);
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 p-6 md:p-10">
+    <main className="pasokin-ui min-h-screen bg-[#f5f7f8] p-6 text-slate-900 md:p-10">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
-          <div><p className="text-sm font-bold text-amber-600">Pasokin</p><h1 className="text-3xl font-extrabold">Konfirmasi Harga Manual</h1></div>
-          <div className="flex gap-2"><a href="/" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Kembali ke dashboard</a><button type="button" onClick={onLogout} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Keluar</button></div>
+          <div><BrandMark compact /><p className="section-eyebrow mt-7">Pengadaan / Review manual</p><h1 className="page-title">Konfirmasi harga manual</h1><p className="page-description">Tinjau negosiasi supplier sebelum pengadaan diselesaikan.</p></div>
+          <div className="flex gap-2"><a href="/" className="app-secondary-button">Kembali ke dashboard</a><button type="button" onClick={onLogout} className="app-secondary-button">Keluar</button></div>
         </header>
         {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
         {notice && <p role="status" className="mb-4 rounded-xl bg-emerald-50 p-4 text-emerald-700">{notice}</p>}
         <div className="grid gap-6 md:grid-cols-[300px_1fr]">
-          <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <aside className="app-panel p-4">
             <h2 className="mb-3 font-bold">Perlu ditangani</h2>
             {rows.length === 0 && <p className="text-sm text-slate-500">Belum ada pengadaan yang perlu konfirmasi manual.</p>}
             <div className="space-y-2">
               {rows.map(row => <button key={row.id} onClick={() => choose(row.id)}
-                className={`w-full rounded-xl border p-3 text-left ${selectedId === row.id ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                className={`w-full rounded-lg border p-3 text-left ${selectedId === row.id ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <span className="block text-sm font-bold">{row.reference_code}</span>
                 <span className="block truncate text-sm">{row.material_summary}</span>
                 <span className="text-xs text-slate-500">{row.status.replaceAll('_', ' ')}</span>
               </button>)}
             </div>
           </aside>
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="app-panel p-6">
             {!selected && <p className="text-slate-500">Pilih pengadaan di sebelah kiri untuk memulai.</p>}
             {selected && <>
               <div className="mb-6 border-b border-slate-100 pb-4">
-                <p className="text-sm font-bold text-amber-600">{selected.reference_code}</p>
+                <p className="text-sm font-bold text-teal-700">{selected.reference_code}</p>
                 <h2 className="text-xl font-bold">{selected.material_summary}</h2>
                 <p className="mt-1 text-sm text-slate-500">Status: {selected.status.replaceAll('_', ' ')}</p>
               </div>
@@ -123,7 +124,7 @@ function ManualConfirmationPage({ onLogout }) {
                   <label className="text-sm font-semibold">Jumlah<input required min="0.01" step="any" type="number" value={form.quantity}
                     onChange={event => setForm({ ...form, quantity: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 p-2" /></label>
                 </div>
-                <button disabled={busy} className="rounded-xl bg-amber-500 px-5 py-2.5 font-bold text-white disabled:opacity-50">Kirim ringkasan ke supplier</button>
+                <button disabled={busy} className="app-primary-button disabled:opacity-50">Kirim ringkasan ke supplier</button>
               </form>}
               {selected.status === 'awaiting_summary_confirmation' && <div className="mb-7 rounded-xl bg-amber-50 p-4">
                 <h3 className="font-bold">Menunggu keputusan buyer</h3>

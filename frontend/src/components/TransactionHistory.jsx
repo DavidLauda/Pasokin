@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { History, Search } from 'lucide-react';
+import { ClipboardList, History, Search } from 'lucide-react';
 import client from '../api/client';
 import PaymentPanel from './PaymentPanel';
 
@@ -52,9 +52,9 @@ export default function TransactionHistory({ onOpenDashboard, refreshKey, demoMo
   const selected = history.find(row => row.id === selectedId);
   const disputeCount = history.filter(row => row.payment_statuses?.includes('disputed')).length;
 
-  return <div className="mx-auto w-full max-w-6xl space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6">
-      <div><h2 className="flex items-center gap-2 text-xl font-bold text-slate-900"><History className="h-5 w-5 text-teal-700" /> Riwayat Transaksi</h2>
+  return <div className="mx-auto w-full max-w-6xl space-y-5">
+    <div className="app-panel flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6">
+      <div><p className="section-eyebrow">Arsip pengadaan</p><h2 className="mt-1 flex items-center gap-2 text-lg font-bold text-slate-900"><History className="h-5 w-5 text-teal-700" /> Transaksi selesai</h2>
         <p className="mt-1 text-sm text-slate-500">Pengadaan yang sudah selesai tersimpan di sini.</p></div>
       <div className="flex flex-wrap items-center gap-2">{disputeCount > 0 && <button type="button" onClick={() => setReviewOnly(value => !value)} className={`rounded-lg px-3 py-2 text-sm font-semibold ${reviewOnly ? 'bg-amber-700 text-white' : 'bg-amber-50 text-amber-800'}`}>Perlu review sengketa: {disputeCount}</button>}<label className="relative"><span className="sr-only">Cari riwayat</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Cari kode, material, supplier" className="rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-teal-700" /></label></div>
@@ -62,14 +62,14 @@ export default function TransactionHistory({ onOpenDashboard, refreshKey, demoMo
 
     {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</p>}
     {loading ? <p className="text-sm text-slate-500">Memuat riwayat…</p> : filtered.length === 0 ?
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">{search || reviewOnly ? 'Tidak ada transaksi yang cocok.' : 'Belum ada pengadaan yang selesai.'}</div> :
+      <div className="app-empty text-slate-500">{search || reviewOnly ? 'Tidak ada transaksi yang cocok.' : 'Belum ada pengadaan yang selesai.'}</div> :
       <div className="grid gap-5 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
         <div className="space-y-3" aria-label="Daftar pengadaan selesai">
           {filtered.map(row => {
             const total = row.manual_price != null && row.manual_quantity != null
               ? Number(row.manual_price) * Number(row.manual_quantity)
               : (row.suppliers || []).reduce((sum, supplier) => sum + Number(supplier.allocation_snapshot?.allocated_qty ?? supplier.allocation_snapshot?.qty ?? 0) * Number(supplier.allocation_snapshot?.price || 0), 0);
-            return <button key={row.id} type="button" onClick={() => setSelectedId(row.id)} className={`w-full rounded-xl border bg-white p-5 text-left ${selectedId === row.id ? 'border-teal-600 ring-1 ring-teal-600' : 'border-slate-200 hover:border-slate-400'}`}>
+            return <button key={row.id} type="button" onClick={() => setSelectedId(row.id)} className={`app-panel w-full p-5 text-left transition-colors ${selectedId === row.id ? 'border-teal-600 ring-1 ring-teal-600' : 'hover:border-teal-400'}`}>
               <span className="text-xs font-semibold text-teal-700">{row.reference_code}</span>
               <strong className="mt-1 block text-base tabular-nums text-slate-900">{row.material_summary || row.parsed_material_summary?.materialName || 'Material'}</strong>
               <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Selesai</span>
@@ -79,8 +79,8 @@ export default function TransactionHistory({ onOpenDashboard, refreshKey, demoMo
             </button>;
           })}
         </div>
-        <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Detail riwayat">
-          {!selectedId ? <p className="text-sm text-slate-500">Pilih pengadaan untuk melihat detailnya.</p> : !detail || detail.id !== selectedId ? <p className="text-sm text-slate-500">Memuat detail…</p> : <>
+        <section className="app-panel min-w-0 p-5 md:p-7" aria-label="Detail riwayat">
+          {!selectedId ? <div className="flex min-h-64 flex-col items-center justify-center text-center"><span className="app-empty-icon"><ClipboardList size={21} /></span><p className="mt-4 text-sm font-semibold text-slate-700">Pilih pengadaan</p><p className="mt-1 max-w-56 text-xs leading-5 text-slate-500">Detail alokasi, pembayaran, dan pesan akan tampil di sini.</p></div> : !detail || detail.id !== selectedId ? <p className="text-sm text-slate-500">Memuat detail…</p> : <>
             <p className="text-xs font-semibold text-teal-700">{detail.reference_code}</p>
             <h3 className="mt-1 text-xl font-bold tabular-nums">{detail.material_summary}</h3>
             <p className="mt-1 text-xs text-slate-500">Selesai · diperbarui {formatDate(detail.updated_at)}</p>

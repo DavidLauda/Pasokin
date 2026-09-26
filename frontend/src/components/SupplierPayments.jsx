@@ -30,7 +30,7 @@ export default function SupplierPayments() {
     finally { setBusy(null); }
   };
 
-  return <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8" aria-label="PO dan pembayaran supplier">
+  return <section className="app-panel mt-6 p-6 sm:p-8" aria-label="PO dan pembayaran supplier">
     <h2 className="text-xl font-bold text-slate-900">PO dan pembayaran</h2>
     <p className="mt-1 text-sm text-slate-500">Dana yang diterima dicatat oleh Pasokin sebelum barang dikirim. Pencairan bank dilakukan terpisah.</p>
     {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}

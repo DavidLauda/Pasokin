@@ -47,6 +47,18 @@ async function signIn(email, password, role) {
   };
 }
 
+async function signInQuick() {
+  if (process.env.QUICK_LOGIN_ENABLED !== 'true') {
+    throw credentialsError('Quick Login belum diaktifkan pada server', 403);
+  }
+  const email = process.env.QUICK_LOGIN_EMAIL;
+  const password = process.env.QUICK_LOGIN_PASSWORD;
+  if (!email || !password) throw credentialsError('Quick Login belum dikonfigurasi pada server', 503);
+  // Credentials stay on the backend. The browser only receives a normal
+  // Supabase Auth session; all protected routes still enforce the buyer role.
+  return signIn(email, password, 'buyer');
+}
+
 async function register({ email, password, name, role }) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   const normalizedName = String(name || '').trim();
@@ -94,4 +106,4 @@ async function signOut(accessToken) {
   if (error) throw credentialsError('Gagal mengakhiri sesi', 400);
 }
 
-module.exports = { register, signIn, refresh, getUser, signOut, publicUser };
+module.exports = { register, signIn, signInQuick, refresh, getUser, signOut, publicUser };

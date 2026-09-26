@@ -42,15 +42,15 @@ export default function NewProcurementPage({ onConfirm, refreshKey }) {
 
   useEffect(() => { refresh(); }, [refresh, refreshKey]);
 
-  return <div className="grid w-full items-start gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
-    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white px-5 py-8 shadow-sm sm:px-8" aria-label="Form pengadaan baru">
+  return <div className="grid w-full items-start gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.8fr)]">
+    <section className="app-panel min-w-0 px-5 py-7 sm:px-8" aria-label="Form pengadaan baru">
       <RequirementForm onConfirm={onConfirm} />
     </section>
 
     <aside className="space-y-4" aria-label="Konteks pengadaan">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="active-context-title">
+      <section className="app-panel p-5" aria-labelledby="active-context-title">
         <div className="flex items-start justify-between gap-3"><div>
-          <h2 id="active-context-title" className="text-sm font-bold text-slate-900">Pengadaan aktif saat ini</h2>
+          <h2 id="active-context-title" className="app-panel-title">Pengadaan aktif saat ini</h2>
           <p className="mt-1 text-xs text-slate-500">{loading ? 'Memuat…' : error ? 'Data belum tersedia' : `${active.length} pengadaan berjalan`}</p>
         </div><ArrowRight size={16} className="text-slate-400" /></div>
         {loading ? <p className="mt-4 text-xs text-slate-500">Memuat ringkasan…</p>
@@ -63,11 +63,11 @@ export default function NewProcurementPage({ onConfirm, refreshKey }) {
         {active.length > 5 && <p className="mt-3 text-xs text-slate-500">Dan {active.length - 5} pengadaan lainnya di Pengadaan Aktif.</p>}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="month-context-title">
-        <div className="flex items-center justify-between gap-2"><div><h2 id="month-context-title" className="text-sm font-bold text-slate-900">Bulan ini</h2><p className="mt-1 text-xs capitalize text-slate-500">{monthTitle()}</p></div><button type="button" onClick={refresh} aria-label="Perbarui fakta bulan ini" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"><RefreshCw size={15} /></button></div>
+      <section className="app-panel p-5" aria-labelledby="month-context-title">
+        <div className="flex items-center justify-between gap-2"><div><h2 id="month-context-title" className="app-panel-title">Bulan ini</h2><p className="mt-1 text-xs capitalize text-slate-500">{monthTitle()}</p></div><button type="button" onClick={refresh} aria-label="Perbarui fakta bulan ini" className="app-icon-button h-8 w-8"><RefreshCw size={15} /></button></div>
         {loading ? <p className="mt-4 text-xs text-slate-500">Menghitung aktivitas…</p> : activity && <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
           {[[activity.created, 'Pengadaan dibuat'], [activity.contacted, 'Supplier dihubungi'], [activity.completed, 'Selesai']].map(([value, label]) =>
-            <div key={label} className="rounded-lg bg-slate-50 px-2 py-3"><dd className="text-xl font-bold tabular-nums text-slate-900">{value ?? '—'}</dd><dt className="mt-1 text-[11px] leading-tight text-slate-500">{label}</dt></div>)}
+            <div key={label} className="rounded-lg border border-slate-100 bg-[#f7f9f9] px-2 py-3"><dd className="text-xl font-bold tabular-nums text-slate-900">{value ?? '—'}</dd><dt className="mt-1 text-[11px] leading-tight text-slate-500">{label}</dt></div>)}
         </dl>}
         {activity && activity.contacted == null && !loading && <p className="mt-3 text-xs text-slate-500">Jumlah supplier belum tersedia karena sebagian detail pengadaan gagal dimuat.</p>}
       </section>
