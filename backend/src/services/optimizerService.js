@@ -64,7 +64,8 @@ function optimizeAllocation(requirement, candidates) {
     let remainingBudget = requirement.maxBudget || Infinity;
     const allocations = [];
 
-    for (const supplier of scoredCandidates) {
+    for (let i = 0; i < scoredCandidates.length; i++) {
+        const supplier = scoredCandidates[i];
         let qtyToTake = 0;
 
         // O1 fix: supplier yang lead_time-nya melewati target_kirim_days (requirement.maxLeadTimeDays)
@@ -76,6 +77,34 @@ function optimizeAllocation(requirement, candidates) {
 
         if (remainingQty > 0 && withinDeadline) {
             qtyToTake = Math.min(supplier.max_capacity_qty, remainingQty);
+
+            // O3 fix: sebelum comit alokasi penuh ke supplier ini, cek apakah sisa
+            // kebutuhan SESUDAHNYA (leftover) masih cukup buat MOQ supplier peringkat
+            // berikutnya. Tanpa ini, greedy bisa ngabisin supplier terbaik dulu
+            // (mis. A ambil 700 dari demand 900) lalu sisanya (200) kegantung di bawah
+            // MOQ supplier kedua (butuh 400) -- padahal solusi feasible ada kalau A
+            // nyisain ruang buat B (A=500 + B=400 = 900). Jadi kurangi alokasi supplier
+            // ini supaya leftover pas >= MOQ supplier berikutnya, SELAMA pengurangan itu
+            // tidak melanggar MOQ supplier ini sendiri. Kalau tidak bisa disesuaikan
+            // tanpa melanggar constraint, dibiarkan apa adanya -- shortfall-nya tetap
+            // kelihatan wajar di totalAllocatedQty vs requirement.quantity (sudah
+            // ditampilkan ke buyer di frontend), bukan didiamkan.
+            const leftoverAfterThis = remainingQty - qtyToTake;
+            if (leftoverAfterThis > 0) {
+                const nextSupplier = scoredCandidates.slice(i + 1).find(s => {
+                    const nextWithinDeadline = requirement.maxLeadTimeDays == null
+                        || s.lead_time_days <= requirement.maxLeadTimeDays;
+                    return nextWithinDeadline && s.max_capacity_qty > 0;
+                });
+
+                if (nextSupplier && leftoverAfterThis < nextSupplier.min_order_qty) {
+                    const reserveForNext = Math.min(nextSupplier.min_order_qty, nextSupplier.max_capacity_qty);
+                    const adjustedQty = remainingQty - reserveForNext;
+                    if (adjustedQty >= supplier.min_order_qty && reserveForNext > 0) {
+                        qtyToTake = adjustedQty;
+                    }
+                }
+            }
 
             // Cek constraint MOQ (Minimum Order Quantity): kalau sisa kebutuhan lebih kecil
             // dari MOQ supplier ini, supplier ini tidak kebagian (qty 0), bukan dipaksa over-order.

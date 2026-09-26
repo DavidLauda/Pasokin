@@ -22,7 +22,8 @@ async function processReplyClassification(replyEntry, latestDispatch, messageId 
         const result = await triageService.classifySupplierReply(
             latestDispatch.requirement_snapshot,
             latestDispatch.allocation_snapshot,
-            replyEntry.message_received
+            replyEntry.message_received,
+            latestDispatch.dispatched_at
         );
         await repliesStore.updateReply(replyEntry.reply_id, {
             classification: result.classification,
