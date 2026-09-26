@@ -9,7 +9,7 @@ import ActiveProcurements from './components/ActiveProcurements';
 import client from './api/client';
 
 function App() {
-  const [appState, setAppState] = useState('active');
+  const [appState, setAppState] = useState('input');
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [selectedProcurementId, setSelectedProcurementId] = useState(null);
     const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
@@ -132,16 +132,16 @@ function App() {
 
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
             <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'input' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState === 'input' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
+                Pengadaan Baru
+            </a>
             <a href="#" onClick={(e) => {
                 e.preventDefault();
                 setAppState('active');
             }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                 <div className={`w-1.5 h-4 rounded-full ${['active', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
-            </a>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'input' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState === 'input' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
-                Pengadaan Baru
             </a>
             <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                 <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
@@ -195,7 +195,7 @@ function App() {
 
         <nav className="flex flex-shrink-0 gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 md:hidden" aria-label="Menu utama">
           {[
-            ['active', 'Pengadaan Aktif'], ['input', 'Pengadaan Baru'],
+            ['input', 'Pengadaan Baru'], ['active', 'Pengadaan Aktif'],
             ['suppliers', 'Supplier'], ['history', 'Riwayat']
           ].map(([value, label]) => {
             const selected = value === 'active' ? ['active', 'dashboard'].includes(appState) : appState === value;
@@ -212,7 +212,6 @@ function App() {
                 {/* Active procurement monitoring */}
                 {appState === 'active' && (
                   <ActiveProcurements
-                    onNew={() => setAppState('input')}
                     initialId={selectedProcurementId}
                     refreshKey={historyRefreshKey}
                     onOpenWorkflow={handleOpenActiveWorkflow}

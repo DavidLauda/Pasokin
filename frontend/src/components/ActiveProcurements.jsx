@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, Plus, RefreshCw } from 'lucide-react';
+import { ArrowRight, RefreshCw } from 'lucide-react';
 import client from '../api/client';
 import ProcurementStatus from './ProcurementStatus';
 import { activeStatusFilters, formatProcurementDate } from './procurementStatusData';
 
-export default function ActiveProcurements({ onNew, initialId, refreshKey, onOpenWorkflow }) {
+export default function ActiveProcurements({ initialId, refreshKey, onOpenWorkflow }) {
   const [items, setItems] = useState([]);
   const [selectedId, setSelectedId] = useState(initialId || null);
   const [detail, setDetail] = useState(null);
@@ -50,14 +50,9 @@ export default function ActiveProcurements({ onNew, initialId, refreshKey, onOpe
   }, [refresh]);
 
   return <div className="space-y-6">
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Pengadaan Aktif</h2>
-        <p className="mt-1 text-sm text-slate-500">Pantau setiap permintaan dan balasan supplier dalam satu tempat.</p>
-      </div>
-      <button type="button" onClick={onNew} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
-        <Plus size={16} /> Pengadaan Baru
-      </button>
+    <div>
+      <h2 className="text-2xl font-bold tracking-tight text-slate-900">Pengadaan Aktif</h2>
+      <p className="mt-1 text-sm text-slate-500">Pantau setiap permintaan dan balasan supplier dalam satu tempat.</p>
     </div>
 
     {error && <div role="alert" className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}<button onClick={refresh} className="inline-flex items-center gap-1 font-semibold"><RefreshCw size={14} /> Coba lagi</button></div>}
@@ -71,16 +66,15 @@ export default function ActiveProcurements({ onNew, initialId, refreshKey, onOpe
     {loading ? <p className="text-sm text-slate-500">Memuat pengadaan…</p> : items.length === 0 ?
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
         <p className="text-lg font-semibold text-slate-800">Belum ada pengadaan aktif</p>
-        <p className="mt-1 text-sm text-slate-500">Mulai permintaan baru untuk menghubungi supplier.</p>
-        <button onClick={onNew} className="mt-5 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white">+ Pengadaan Baru</button>
+        <p className="mt-1 text-sm text-slate-500">Mulai permintaan baru melalui menu Pengadaan Baru.</p>
       </div> : visibleItems.length === 0 ?
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
         <p className="font-semibold text-slate-800">Tidak ada pengadaan dengan status ini.</p>
         <button type="button" onClick={() => setStatusFilter('all')} className="mt-3 text-sm font-semibold text-teal-700">Lihat semua pengadaan</button>
       </div> :
-      <div className="grid gap-5 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
-        <div className="space-y-3" aria-label="Daftar pengadaan aktif">
-          {visibleItems.map(item => <button key={item.id} type="button" onClick={() => setSelectedId(item.id)}
+      <div className="space-y-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-label="Daftar pengadaan aktif">
+          {visibleItems.map(item => <button key={item.id} type="button" onClick={() => setSelectedId(current => current === item.id ? null : item.id)} aria-expanded={selectedId === item.id}
             className={`w-full rounded-xl border bg-white p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${selectedId === item.id ? 'border-teal-600 ring-1 ring-teal-600' : 'border-slate-200 hover:border-slate-400'}`}>
             <div className="flex items-start justify-between gap-3"><strong className="text-base tabular-nums text-slate-900">{item.material_summary || 'Material belum diisi'}</strong><ArrowRight size={17} className="shrink-0 text-slate-400" /></div>
             <div className="mt-3"><ProcurementStatus value={item.status} /></div>
@@ -89,8 +83,9 @@ export default function ActiveProcurements({ onNew, initialId, refreshKey, onOpe
             <p className="mt-2 font-mono text-xs text-slate-400">{item.reference_code}</p>
           </button>)}
         </div>
-        <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Detail pengadaan">
-          {!selectedId ? <p className="text-sm text-slate-500">Pilih pengadaan untuk melihat alokasi dan balasannya.</p> : !detail || detail.id !== selectedId ? <p className="text-sm text-slate-500">Memuat detail…</p> : <>
+        {selectedId && <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Detail pengadaan">
+          <button type="button" onClick={() => setSelectedId(null)} className="mb-5 text-sm font-semibold text-teal-700 hover:text-teal-900">Tutup detail</button>
+          {!detail || detail.id !== selectedId ? <p className="text-sm text-slate-500">Memuat detail…</p> : <>
             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
               <div><p className="font-mono text-xs text-teal-700">{detail.reference_code}</p><h3 className="mt-1 text-xl font-bold tabular-nums text-slate-900">{detail.material_summary}</h3><p className="mt-1 text-xs text-slate-500">Dibuat {formatProcurementDate(detail.created_at)}</p></div>
               <ProcurementStatus value={detail.status} />
@@ -107,7 +102,7 @@ export default function ActiveProcurements({ onNew, initialId, refreshKey, onOpe
             {['needs_manual_review', 'awaiting_summary_confirmation'].includes(detail.status) && <a href={`/manual-confirmation.html?procurement_id=${encodeURIComponent(detail.id)}`} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">Buka konfirmasi harga manual <ArrowRight size={15} /></a>}
             <button type="button" onClick={() => onOpenWorkflow(detail)} className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:text-teal-900">Buka alur pengadaan <ArrowRight size={15} /></button>
           </>}
-        </section>
+        </section>}
       </div>}
   </div>;
 }
