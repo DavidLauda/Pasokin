@@ -2,6 +2,7 @@
 // Runtime requests use Postgres only; this script is never loaded by the app.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const db = require('../src/db');
@@ -34,9 +35,11 @@ async function main() {
     const first = group[0];
     const row = {
       id,
+      reference_code: `PSK-${crypto.createHash('sha256').update(id).digest('hex').slice(0, 4).toUpperCase()}`,
       buyer_info: {},
+      material_summary: `${first.requirement_snapshot.materialName || 'Material'} ${first.requirement_snapshot.quantity || ''} ${first.requirement_snapshot.unit || ''}`.trim(),
       parsed_material_summary: first.requirement_snapshot,
-      weight_preset_used: first.requirement_snapshot.priority || {},
+      weight_preset_used: JSON.stringify(first.requirement_snapshot.priority || {}),
       status: group.some(log => log.po_sent) ? 'completed' : 'dispatched',
       created_at: first.dispatched_at
     };
