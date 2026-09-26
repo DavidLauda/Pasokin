@@ -3,4 +3,3 @@ node_modules/
 .baileys_auth_info/
 dist/
 
-triage-service/adapter_v2/
