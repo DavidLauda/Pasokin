@@ -7,14 +7,16 @@ const configService = require('../services/configService');
 const dataStore = require('../services/dataStore');
 const optimizerService = require('../services/optimizerService');
 const crypto = require('crypto');
+const procurementsStore = require('../services/procurementsStore');
 
 router.get('/', async (req, res) => {
     let replies = await repliesStore.getAllReplies();
     if (req.query.status) {
         replies = replies.filter(r => r.classification === req.query.status);
     }
-    if (req.query.dispatch_id) {
-        replies = replies.filter(r => r.dispatch_id === req.query.dispatch_id);
+    const procurementId = req.query.procurement_id || req.query.dispatch_id;
+    if (procurementId) {
+        replies = replies.filter(r => r.dispatch_id === procurementId);
     }
     
     // Attach dispatch snapshots for UI comparison
@@ -48,6 +50,19 @@ router.post('/:reply_id/override', async (req, res) => {
     });
     
     if (!updated) return res.status(404).json({ error: "Reply not found" });
+    if (updated.procurement_message_id) {
+        await procurementsStore.classifyMessage(updated.procurement_message_id, classification);
+    }
+    if (updated.dispatch_id) {
+        const procurement = await procurementsStore.get(updated.dispatch_id);
+        if (procurement && !['awaiting_summary_confirmation', 'completed'].includes(procurement.status)) {
+            const openReview = (await repliesStore.getAllReplies()).some(reply =>
+                reply.dispatch_id === updated.dispatch_id &&
+                reply.classification === 'needs_manual_review' && !reply.resolved);
+            await procurementsStore.setStatus(updated.dispatch_id,
+                openReview ? 'needs_manual_review' : 'triaging');
+        }
+    }
     res.json(updated);
 });
 
@@ -115,13 +130,15 @@ router.post('/simulate', async (req, res) => {
         return res.status(403).json({ error: "Hanya tersedia saat DEMO_MODE=true" });
     }
 
-    const { phone, style } = req.body;
-    if (!phone || !style) return res.status(400).json({ error: "phone and style required" });
+    const { phone, style, procurement_id, supplier_id } = req.body;
+    if (!phone || !style || !procurement_id) return res.status(400).json({ error: "phone, style and procurement_id required" });
 
     console.log("Simulate called with phone:", phone, "style:", style);
 
-    // Cari log dispatch terbaru untuk nomor ini
+    // Restrict the simulation to the selected procurement, even if the same
+    // phone has been contacted for another open order.
     const logs = (await dispatchLog.getAllLogs()).filter(l => {
+        if (l.dispatch_id !== procurement_id || (supplier_id && l.supplier_id !== supplier_id)) return false;
         let lp = l.phone.replace(/\D/g, '');
         if (lp.startsWith('0')) lp = '62' + lp.substring(1);
         
@@ -131,7 +148,11 @@ router.post('/simulate', async (req, res) => {
         return lp === reqPhone;
     });
 
-    const latestDispatch = logs.length > 0 ? logs[logs.length - 1] : null;
+    if (logs.length > 1) return res.status(409).json({ error: 'Pilih supplier_id untuk nomor yang dipakai bersama' });
+    const latestDispatch = logs[0] || null;
+    if (!latestDispatch) return res.status(404).json({ error: 'Supplier tidak ada pada procurement ini' });
+    const procurement = await procurementsStore.get(procurement_id);
+    if (!procurement) return res.status(404).json({ error: 'Procurement tidak ditemukan' });
 
     let simulatedMessage = "";
     if (style === "confirmed") {
@@ -142,11 +163,17 @@ router.post('/simulate', async (req, res) => {
         simulatedMessage = "Maaf pak, barang kosong.";
     }
     
+    simulatedMessage = `[${procurement.reference_code}] ${simulatedMessage}`;
     console.log("Simulated message:", simulatedMessage);
+
+    const supplierUuid = await procurementsStore.supplierUuid(latestDispatch.supplier_id);
+    const message = await procurementsStore.addMessage({ procurementId: procurement_id,
+        supplierId: supplierUuid, direction: 'inbound', rawText: simulatedMessage });
 
     const reply_id = crypto.randomUUID();
     const replyEntry = {
         reply_id,
+        procurement_message_id: message.id,
         dispatch_id: latestDispatch ? latestDispatch.dispatch_id : null,
         supplier_id: latestDispatch ? latestDispatch.supplier_id : null,
         supplier_name: latestDispatch ? latestDispatch.name : null,
@@ -165,7 +192,7 @@ router.post('/simulate', async (req, res) => {
 
     if (latestDispatch) {
         console.log("Latest dispatch found, calling processReplyClassification");
-        await whatsappService.processReplyClassification(replyEntry, latestDispatch);
+        await whatsappService.processReplyClassification(replyEntry, latestDispatch, message.id);
         console.log("Classification finished");
     }
 
@@ -179,12 +206,14 @@ router.post('/simulate-all', async (req, res) => {
         return res.status(403).json({ error: "Hanya tersedia saat DEMO_MODE=true" });
     }
 
-    const { dispatch_id } = req.body;
-    if (!dispatch_id) return res.status(400).json({ error: "dispatch_id required" });
+    const procurement_id = req.body.procurement_id || req.body.dispatch_id;
+    if (!procurement_id) return res.status(400).json({ error: "procurement_id required" });
 
     // Cari semua supplier di dispatch ini yang belum punya reply
-    const allLogs = (await dispatchLog.getAllLogs()).filter(l => l.dispatch_id === dispatch_id);
+    const allLogs = (await dispatchLog.getAllLogs()).filter(l => l.dispatch_id === procurement_id);
     if (allLogs.length === 0) return res.status(404).json({ error: "Dispatch not found" });
+    const procurement = await procurementsStore.get(procurement_id);
+    if (!procurement) return res.status(404).json({ error: 'Procurement tidak ditemukan' });
 
     const allReplies = await repliesStore.getAllReplies();
     const waitingLogs = allLogs.filter(l => !allReplies.some(r => r.supplier_id === l.supplier_id && r.dispatch_id === l.dispatch_id));
@@ -207,9 +236,14 @@ router.post('/simulate-all', async (req, res) => {
             simulatedMessage = `Waduh pak, kalau harga segitu ga dapet sekarang. Harganya naik sedikit. Gimana?`;
         }
 
+        simulatedMessage = `[${procurement.reference_code}] ${simulatedMessage}`;
+        const supplierUuid = await procurementsStore.supplierUuid(log.supplier_id);
+        const message = await procurementsStore.addMessage({ procurementId: procurement_id,
+            supplierId: supplierUuid, direction: 'inbound', rawText: simulatedMessage });
         const reply_id = crypto.randomUUID();
         const replyEntry = {
             reply_id,
+            procurement_message_id: message.id,
             dispatch_id: log.dispatch_id,
             supplier_id: log.supplier_id,
             supplier_name: log.name,
@@ -224,14 +258,14 @@ router.post('/simulate-all', async (req, res) => {
         };
 
         await repliesStore.addReply(replyEntry);
-        newReplies.push({ replyEntry, log });
+        newReplies.push({ replyEntry, log, message });
     }
 
     // Klasifikasikan tiap reply lewat pipeline triage yang sama dengan endpoint
     // /simulate (fine-tuned triage model / heuristik demo), bukan Gemini langsung,
     // supaya konsisten dengan alur balasan WhatsApp asli.
     await Promise.allSettled(
-        newReplies.map(item => whatsappService.processReplyClassification(item.replyEntry, item.log))
+        newReplies.map(item => whatsappService.processReplyClassification(item.replyEntry, item.log, item.message.id))
     );
 
     res.json({ message: "Simulasi batched selesai.", count: newReplies.length });

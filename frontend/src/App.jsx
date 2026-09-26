@@ -5,11 +5,13 @@ import RequirementForm from './components/RequirementForm';
 import OptimizationDashboard from './components/OptimizationDashboard';
 import SupplierManagement from './components/SupplierManagement';
 import TransactionHistory from './components/TransactionHistory';
+import ActiveProcurements from './components/ActiveProcurements';
 import client from './api/client';
 
 function App() {
-  const [appState, setAppState] = useState('input'); // 'input' | 'dashboard' | 'suppliers' | 'history'
+  const [appState, setAppState] = useState('active');
   const [optimizationResult, setOptimizationResult] = useState(null);
+  const [selectedProcurementId, setSelectedProcurementId] = useState(null);
     const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [health, setHealth] = useState({ status: 'unknown', demoMode: false });
 
@@ -27,8 +29,26 @@ function App() {
 
   const handleConfirm = (data) => {
     setOptimizationResult(data);
-        setHistoryRefreshKey(key => key + 1);
-        setAppState('dashboard');
+    setSelectedProcurementId(data.dispatch_id);
+    setHistoryRefreshKey(key => key + 1);
+    setAppState('active');
+  };
+
+  const handleOpenActiveWorkflow = (procurement) => {
+    if (optimizationResult?.dispatch_id === procurement.id) {
+      setAppState('dashboard');
+      return;
+    }
+    const requirement = procurement.parsed_material_summary || {};
+    const candidates = (procurement.dispatched_suppliers || []).map(log => ({
+      ...log.allocation_snapshot, supplier_id: log.supplier_id,
+      name: log.name, phone: log.phone,
+      price_per_unit: log.allocation_snapshot?.price
+    }));
+    setOptimizationResult({ requirement, candidates,
+      optimization: { recommended_allocations: [], candidates },
+      dispatch_id: procurement.id, poSent: false, isHistorical: false });
+    setAppState('dashboard');
   };
 
   const handleOpenHistoryDetail = (historyItem) => {
@@ -114,14 +134,9 @@ function App() {
             <div className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Menu Utama</div>
             <a href="#" onClick={(e) => {
                 e.preventDefault();
-                if (optimizationResult && optimizationResult.poSent !== true) {
-                    setAppState('dashboard');
-                } else {
-                    setAppState('input');
-                    setOptimizationResult(null);
-                }
-            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['input', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${['input', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+                setAppState('active');
+            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
             <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
@@ -147,7 +162,8 @@ function App() {
         <header className="h-20 flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-10">
             <div className="flex items-center gap-4">
                 <h1 className="text-2xl font-extrabold text-slate-900">
-                    {appState === 'input' ? 'Pengadaan Baru' : 
+                    {appState === 'active' ? 'Pengadaan Aktif' :
+                     appState === 'input' ? 'Pengadaan Baru' :
                      appState === 'dashboard' ? 'Dashboard Pengadaan' :
                      appState === 'suppliers' ? 'Manajemen Supplier' : 'Dashboard'}
                 </h1>
@@ -176,6 +192,12 @@ function App() {
             <div className="max-w-[1600px] mx-auto space-y-8">
                 
                 {/* Input State */}
+                {appState === 'active' && <ActiveProcurements
+                    onNew={() => setAppState('input')}
+                    initialId={selectedProcurementId}
+                    refreshKey={historyRefreshKey}
+                    onOpenWorkflow={handleOpenActiveWorkflow}
+                />}
                 {appState === 'input' && (
                     <div className="flex justify-center pt-8">
                         <RequirementForm onConfirm={handleConfirm} />
@@ -187,8 +209,7 @@ function App() {
                     <div className="space-y-4">
                         <button 
                             onClick={() => { 
-                                setAppState(optimizationResult.isHistorical ? 'history' : 'input'); 
-                                setOptimizationResult(null); 
+                                setAppState(optimizationResult.isHistorical ? 'history' : 'active');
                             }} 
                             className="px-5 py-2 text-sm font-bold bg-slate-100 border border-slate-200 rounded-xl shadow-sm text-slate-700 hover:bg-slate-200 hover:shadow transition-all"
                         >
