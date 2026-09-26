@@ -20,7 +20,7 @@ function unproject(x, y, zoom) {
   };
 }
 
-export default function SupplierLocationPicker({ lat, lng, onChange }) {
+export default function SupplierLocationPicker({ lat, lng, onChange, locationLabel = 'supplier' }) {
   const mapRef = useRef(null);
   const [size, setSize] = useState({ width: 600, height: 260 });
   const [center, setCenter] = useState({ lat: Number(lat) || -6.2088, lng: Number(lng) || 106.8456 });
@@ -69,7 +69,7 @@ export default function SupplierLocationPicker({ lat, lng, onChange }) {
   return <div className="space-y-2">
     <div ref={mapRef} onClick={choose} role="button" tabIndex={0}
       onKeyDown={event => { if (event.key === 'Enter') onChange(center); }}
-      aria-label="Peta. Klik untuk menentukan pin lokasi supplier"
+      aria-label={`Peta. Klik untuk menentukan pin lokasi ${locationLabel}`}
       className="relative h-64 w-full cursor-crosshair overflow-hidden rounded-xl border border-slate-300 bg-slate-100">
       {tiles.map(tile => <img key={tile.key} alt="" draggable="false"
         src={`https://tile.openstreetmap.org/${zoom}/${((tile.x % maxTile) + maxTile) % maxTile}/${tile.y}.png`}

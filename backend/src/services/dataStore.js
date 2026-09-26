@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const db = require('../db');
+const geocoding = require('./geocoding');
 
 const editableFields = [
   'name', 'phone', 'material_category', 'categories', 'address', 'location',
@@ -50,7 +51,8 @@ function supplierInput(input, current = null) {
     if (!Number.isFinite(row[field]) || row[field] < 0) invalid(`${field} harus angka positif`);
   }
   for (const [field, min, max] of [['lat', -90, 90], ['lng', -180, 180]]) {
-    if (row[field] === undefined || row[field] === null || row[field] === '') continue;
+    if (row[field] === undefined) continue;
+    if (row[field] === null || row[field] === '') { row[field] = null; continue; }
     row[field] = Number(row[field]);
     if (!Number.isFinite(row[field]) || row[field] < min || row[field] > max) invalid(`${field} tidak valid`);
   }
@@ -65,6 +67,26 @@ function supplierInput(input, current = null) {
     row.nib !== undefined ? row.nib : current?.nib,
     row.npwp !== undefined ? row.npwp : current?.npwp
   );
+  return row;
+}
+
+async function resolveLocation(row, input, current = null) {
+  const hasLat = Object.prototype.hasOwnProperty.call(input, 'lat');
+  const hasLng = Object.prototype.hasOwnProperty.call(input, 'lng');
+  if (hasLat !== hasLng) invalid('Latitude dan longitude harus diisi bersamaan');
+
+  const addressChanged = !current || (row.address !== undefined && row.address !== current.address);
+  if (hasLat && row.lat !== null && row.lng !== null) {
+    // Coordinates supplied by the form are a deliberate map pin (or its preview).
+    row.location_verified = true;
+  } else if (addressChanged) {
+    const location = await geocoding.geocodeAddress(row.address);
+    row.lat = location?.lat ?? null;
+    row.lng = location?.lng ?? null;
+    row.location_verified = Boolean(location);
+  } else if (hasLat) {
+    row.location_verified = false;
+  }
   return row;
 }
 
@@ -94,6 +116,7 @@ async function addSupplier(input, reservedId = null) {
       row.min_order_qty > row.max_capacity_qty) {
     invalid('Nama, kontak, kategori, alamat, kapasitas, dan MOQ yang valid wajib diisi');
   }
+  await resolveLocation(row, input);
   return db.insert('suppliers', { id: reservedId || `sup-${crypto.randomUUID()}`, ...row });
 }
 
@@ -101,11 +124,13 @@ async function updateSupplier(id, input) {
   const current = await db.findOne('suppliers', 'id', id);
   if (!current || current.is_active === false) return null;
   const changes = supplierInput(input, current);
+  if (changes.address !== undefined && !changes.address) invalid('Alamat supplier wajib diisi');
   if (changes.min_order_qty !== undefined || changes.max_capacity_qty !== undefined) {
     const minimum = changes.min_order_qty ?? Number(current.min_order_qty);
     const capacity = changes.max_capacity_qty ?? Number(current.max_capacity_qty);
     if (minimum > capacity) invalid('MOQ tidak boleh melebihi kapasitas');
   }
+  await resolveLocation(changes, input, current);
   const rows = await db.update('suppliers', 'id', id, changes);
   return rows[0] || null;
 }

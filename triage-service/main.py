@@ -116,7 +116,7 @@ def _extract_json(raw_text: str) -> dict:
     start_idx = raw_text.find('{')
     if start_idx == -1:
         raise ValueError("Tidak ada objek JSON ditemukan di output model.")
-    
+
     brace_count = 0
     end_idx = -1
     for i in range(start_idx, len(raw_text)):
@@ -127,10 +127,10 @@ def _extract_json(raw_text: str) -> dict:
             if brace_count == 0:
                 end_idx = i
                 break
-                
+
     if end_idx == -1:
         raise ValueError("Struktur JSON tidak tertutup dengan benar.")
-        
+
     json_str = raw_text[start_idx:end_idx+1]
     return json.loads(json_str)
 
@@ -139,6 +139,16 @@ ID_MONTHS = {
     "januari": 1, "februari": 2, "maret": 3, "april": 4, "mei": 5, "juni": 6,
     "juli": 7, "agustus": 8, "september": 9, "oktober": 10, "november": 11, "desember": 12,
 }
+
+ID_DAYNAMES = {
+    "senin": 0, "selasa": 1, "rabu": 2, "kamis": 3, "jumat": 4, "sabtu": 5, "minggu": 6,
+}
+
+# Cycle 2: aturan tambahan T4/T5 yang membaca teks balasan mentah langsung
+# (bukan hasil ekstraksi model) -- lihat cycle.md Cycle 2c untuk analisis
+# kenapa versi sebelumnya (baca ai_extracted) tidak efektif.
+PAYMENT_TERM_PATTERN = re.compile(r"\btempo\b|\bDP\b|\bdown payment\b|\bcicil", re.IGNORECASE)
+HEDGING_PATTERN = re.compile(r"insyaallah|kayaknya|mungkin|semoga", re.IGNORECASE)
 
 
 def _parse_id_date(text: str):
@@ -158,8 +168,8 @@ def _parse_id_date(text: str):
 
 def _extract_rfq_context(text_input: str) -> dict:
     """Ambil angka acuan RFQ (harga target, qty diminta, sisa hari sampai target
-    kirim) dari text_input, biar guardrail punya sesuatu buat dibandingkan.
-    Menangani dua format text_input yang beredar:
+    kirim, dan tanggal RFQ dikirim sebagai anchor) dari text_input, biar guardrail
+    punya sesuatu buat dibandingkan. Menangani dua format text_input yang beredar:
       - lama:  '... target harga Rp <x>, target pengiriman maksimal <n> hari ...'
       - baru:  '... Rp<x>. Tanggal RFQ dikirim: <tgl>. Target kirim: <tgl>. ...'
     """
@@ -178,57 +188,172 @@ def _extract_rfq_context(text_input: str) -> dict:
     rfq_qty = float(qty_match.group(1).replace(",", ".")) if qty_match else None
 
     max_lead_days = None
+    dispatched_at = None
     explicit_days = re.search(r"maksimal\s+(\d+)\s+hari", rfq_part, re.IGNORECASE)
     if explicit_days:
         max_lead_days = int(explicit_days.group(1))
     else:
         sent_match = re.search(r"Tanggal RFQ dikirim:\s*([^.]+)\.", rfq_part, re.IGNORECASE)
         target_match = re.search(r"Target kirim:\s*([^.]+)\.", rfq_part, re.IGNORECASE)
+        if sent_match:
+            dispatched_at = _parse_id_date(sent_match.group(1))
         if sent_match and target_match:
-            d1 = _parse_id_date(sent_match.group(1))
             d2 = _parse_id_date(target_match.group(1))
-            if d1 and d2:
-                max_lead_days = (d2 - d1).days
+            if dispatched_at and d2:
+                max_lead_days = (d2 - dispatched_at).days
 
-    return {"rfq_price": rfq_price, "rfq_qty": rfq_qty, "max_lead_days": max_lead_days}
+    return {
+        "rfq_price": rfq_price, "rfq_qty": rfq_qty,
+        "max_lead_days": max_lead_days, "dispatched_at": dispatched_at,
+    }
+
+
+def _extract_reply_text(text_input: str) -> str:
+    parts = text_input.split("Balasan Supplier:", 1)
+    return parts[1].strip() if len(parts) > 1 else text_input
+
+
+def _resolve_lead_time_from_reply(reply_text: str, dispatched_at: datetime):
+    """Hitung lead_time_days SECARA DETERMINISTIK dari teks balasan mentah,
+    dipakai buat MENIMPA hasil ekstraksi model. Cycle 2 nunjukkin model cuma
+    62.5% akurat di field ini -- sering bener nyebut tanggal di ai_summary
+    tapi keliru menghitung offsetnya. Return None kalau tidak ada penanda
+    jadwal kirim sama sekali di balasan (bukan berarti 0)."""
+    text = reply_text.lower()
+    anchor = dispatched_at
+
+    if re.search(r"\bbesok\b|\bbsk\b", text):
+        return 1
+    if re.search(r"\blusa\b", text):
+        return 2
+    if re.search(r"\bhari ini\b|\bhr ini\b", text):
+        return 0
+
+    m = re.search(rf"(?:tanggal|tgl\.?)?\s*(\d{{1,2}})\s*({'|'.join(ID_MONTHS.keys())})", text)
+    if m:
+        day, month, year = int(m.group(1)), ID_MONTHS[m.group(2)], anchor.year
+        try:
+            target = datetime(year, month, day)
+        except ValueError:
+            return None
+        if target < anchor:
+            target = datetime(year + 1, month, day)
+        return (target - anchor).days
+
+    m = re.search(r"(?:tanggal|tgl\.?)\s*(\d{1,2})\b", text)
+    if m:
+        day = int(m.group(1))
+        month, year = anchor.month, anchor.year
+        if day < anchor.day:
+            month += 1
+            if month > 12:
+                month, year = 1, year + 1
+        try:
+            target = datetime(year, month, day)
+        except ValueError:
+            month += 1
+            if month > 12:
+                month, year = 1, year + 1
+            try:
+                target = datetime(year, month, day)
+            except ValueError:
+                return None
+        return (target - anchor).days
+
+    for name, weekday in ID_DAYNAMES.items():
+        if re.search(rf"\b{name}\b", text):
+            days_ahead = (weekday - anchor.weekday()) % 7
+            if days_ahead == 0:
+                days_ahead = 7
+            if re.search(rf"\b{name}\s+depan\b", text):
+                days_ahead += 7
+            return days_ahead
+
+    if re.search(r"minggu ini", text):
+        return (6 - anchor.weekday()) % 7
+    if re.search(r"minggu depan", text):
+        return 7
+
+    m = re.search(r"(\d+)\s*hari\s*lagi", text)
+    if m:
+        return int(m.group(1))
+
+    return None
+
+
+def _reply_has_any_number(reply_text: str) -> bool:
+    return bool(re.search(r"\d", reply_text))
+
+
+def _extract_reply_price(reply_text: str):
+    """Ekstrak harga langsung dari teks balasan, independen dari ai_extracted.price
+    (yang di Cycle 2 kadang cuma nyalin harga RFQ, lihat triage_040/044)."""
+    text = reply_text.lower()
+
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:jt|juta)\b", text)
+    if m:
+        return float(m.group(1).replace(",", ".")) * 1_000_000
+
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:rb|ribu)\b", text)
+    if m:
+        return float(m.group(1).replace(",", ".")) * 1_000
+
+    m = re.search(r"\b(\d{1,3})k\b", text)
+    if m:
+        return float(m.group(1)) * 1_000
+
+    m = re.search(r"\b(\d{2,3}(?:\.\d{3})+|\d{4,})\b", text)
+    if m:
+        return float(m.group(1).replace(".", ""))
+
+    return None
 
 
 def _apply_triage_guardrail(parsed: dict, text_input: str) -> dict:
-    """Fase II T1/T4/T5: guardrail deterministik SETELAH model, targetnya
-    40.7% False-Confirmed rate di baseline. Cuma pernah mengetatkan
-    confirmed -> needs_manual_review, tidak pernah ke arah sebaliknya --
-    jadi tidak menambah missed-confirmation rate.
-
-    Aturan (konsisten dengan 46 kasus eval Triage yang sudah direview tim):
-    - Tidak ada angka (qty/harga/lead_time) yang berhasil diekstrak sama sekali
-      -> jangan pernah percaya "confirmed" tanpa bukti (T5).
-    - Harga supplier di atas harga target RFQ -> review (T1).
-    - Qty tidak disebutkan eksplisit -> review (partial qty tetap boleh,
-      asal ADA angkanya -- keputusan tim soal partial-qty confirmed).
-    - Tidak ada lead time/tanggal kirim eksplisit -> review (T4).
-    - Lead time yang disebutkan melewati target kirim -> review (T4).
+    """Fase II T1/T4/T5 + Cycle 2 revisi: aturan sekarang membaca teks balasan
+    MENTAH, bukan cuma hasil ekstraksi model -- karena Cycle 2 nunjukkin model
+    kadang ngarang angka dari konteks RFQ (triage_031, salam doang tapi tetap
+    "confirmed" dengan qty/price ngarang) atau nyalin harga RFQ alih-alih
+    baca balasan (triage_040, triage_044). Cuma pernah mengetatkan
+    confirmed -> needs_manual_review, tidak pernah sebaliknya -- jadi tidak
+    menambah missed-confirmation rate.
     """
     if parsed.get("classification") != "confirmed":
         return parsed
 
     extracted = parsed.get("ai_extracted") or {}
-    qty = extracted.get("qty")
-    price = extracted.get("price")
-    lead_time_days = extracted.get("lead_time_days")
-
     ctx = _extract_rfq_context(text_input)
+    reply_text = _extract_reply_text(text_input)
+
+    # Timpa lead_time_days hasil model dengan hitungan deterministik dari
+    # teks balasan, kalau anchor (dispatched_at) tersedia -- ini juga
+    # memperbaiki extraction_accuracy di eval, bukan cuma classification.
+    if ctx["dispatched_at"] is not None:
+        computed_lead_time = _resolve_lead_time_from_reply(reply_text, ctx["dispatched_at"])
+        extracted["lead_time_days"] = computed_lead_time
+        parsed["ai_extracted"] = extracted
+    else:
+        computed_lead_time = extracted.get("lead_time_days")
+
+    qty = extracted.get("qty")
     reason = None
 
-    if qty is None and price is None and lead_time_days is None:
-        reason = "tidak ada angka (qty/harga/lead time) yang berhasil diekstrak dari balasan"
-    elif price is not None and ctx["rfq_price"] is not None and price > ctx["rfq_price"]:
-        reason = f"harga supplier ({price}) di atas harga RFQ ({ctx['rfq_price']})"
-    elif qty is None:
-        reason = "qty tidak disebutkan secara eksplisit di balasan"
-    elif lead_time_days is None:
-        reason = "tidak ada tanggal/estimasi pengiriman eksplisit di balasan"
-    elif ctx["max_lead_days"] is not None and lead_time_days > ctx["max_lead_days"]:
-        reason = f"lead time ({lead_time_days} hari) melewati target ({ctx['max_lead_days']} hari)"
+    if not _reply_has_any_number(reply_text):
+        reason = "balasan tidak mengandung angka sama sekali"
+    else:
+        reply_price = _extract_reply_price(reply_text)
+        if reply_price is not None and ctx["rfq_price"] is not None and reply_price > ctx["rfq_price"]:
+            reason = f"harga di balasan ({reply_price}) di atas harga RFQ ({ctx['rfq_price']})"
+        elif qty is None:
+            reason = "qty tidak disebutkan secara eksplisit di balasan"
+        elif computed_lead_time is None:
+            reason = "tidak ada tanggal/estimasi pengiriman eksplisit di balasan"
+        elif ctx["max_lead_days"] is not None and computed_lead_time > ctx["max_lead_days"]:
+            reason = f"lead time ({computed_lead_time} hari) melewati target ({ctx['max_lead_days']} hari)"
+        elif PAYMENT_TERM_PATTERN.search(reply_text):
+            reason = "ada syarat pembayaran (tempo/DP/cicilan) di luar alur pembayaran standar"
+        elif HEDGING_PATTERN.search(reply_text):
+            reason = "bahasa tidak pasti (insyaallah/mungkin/dst.) di balasan"
 
     if reason:
         parsed["classification"] = "needs_manual_review"
