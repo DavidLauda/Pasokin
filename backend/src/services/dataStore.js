@@ -4,49 +4,117 @@ const db = require('../db');
 const editableFields = [
   'name', 'phone', 'material_category', 'categories', 'address', 'location',
   'lat', 'lng', 'max_capacity_qty', 'min_order_qty', 'price_per_unit', 'unit',
-  'lead_time_days', 'verification_status', 'reliability_score',
-  'payout_bank', 'payout_account_number', 'payout_account_holder'
+  'lead_time_days', 'payment_terms', 'nib', 'npwp', 'payout_bank',
+  'payout_account_number', 'payout_account_holder'
 ];
 
-function supplierInput(input) {
+function invalid(message) {
+  const error = new Error(message);
+  error.status = 400;
+  throw error;
+}
+
+function normalizeIdentity(value, field, length) {
+  if (value === undefined) return undefined;
+  if (value === null || String(value).trim() === '') return null;
+  const digits = String(value).replace(/[.\s-]/g, '');
+  if (!/^\d+$/.test(digits) || !length.includes(digits.length)) invalid(`Format ${field} tidak valid`);
+  return digits;
+}
+
+function verificationStatus(nib, npwp) {
+  if (nib && npwp) return 'verified';
+  if (nib || npwp) return 'pending';
+  return 'unverified';
+}
+
+function supplierInput(input, current = null) {
   const row = Object.fromEntries(editableFields
-    .filter(field => input[field] !== undefined)
+    .filter(field => Object.prototype.hasOwnProperty.call(input, field))
     .map(field => [field, input[field]]));
-  if (!row.material_category && Array.isArray(row.categories)) {
-    row.material_category = row.categories[0];
+  if (row.name !== undefined) row.name = String(row.name).trim();
+  if (row.phone !== undefined) row.phone = String(row.phone).trim();
+  if (row.phone && !/^\+?[\d\s()-]{8,24}$/.test(row.phone)) invalid('Format nomor kontak tidak valid');
+  if (row.address !== undefined) row.address = String(row.address).trim();
+  if (row.categories !== undefined) {
+    if (!Array.isArray(row.categories)) invalid('Kategori harus berupa daftar');
+    row.categories = [...new Set(row.categories.map(value => String(value).trim()).filter(Boolean))];
+    row.material_category = row.categories[0] || '';
+  } else if (row.material_category !== undefined) {
+    row.material_category = String(row.material_category).trim();
+    row.categories = row.material_category ? [row.material_category] : [];
   }
-  if (row.material_category && !row.categories) row.categories = [row.material_category];
+  for (const field of ['max_capacity_qty', 'min_order_qty', 'price_per_unit', 'lead_time_days']) {
+    if (row[field] === undefined) continue;
+    row[field] = Number(row[field]);
+    if (!Number.isFinite(row[field]) || row[field] < 0) invalid(`${field} harus angka positif`);
+  }
+  for (const [field, min, max] of [['lat', -90, 90], ['lng', -180, 180]]) {
+    if (row[field] === undefined || row[field] === null || row[field] === '') continue;
+    row[field] = Number(row[field]);
+    if (!Number.isFinite(row[field]) || row[field] < min || row[field] > max) invalid(`${field} tidak valid`);
+  }
+  const latitude = row.lat !== undefined ? row.lat : current?.lat;
+  const longitude = row.lng !== undefined ? row.lng : current?.lng;
+  if ((latitude == null || latitude === '') !== (longitude == null || longitude === '')) {
+    invalid('Latitude dan longitude harus diisi bersamaan');
+  }
+  if (row.nib !== undefined) row.nib = normalizeIdentity(row.nib, 'NIB', [13]);
+  if (row.npwp !== undefined) row.npwp = normalizeIdentity(row.npwp, 'NPWP', [15, 16]);
+  row.verification_status = verificationStatus(
+    row.nib !== undefined ? row.nib : current?.nib,
+    row.npwp !== undefined ? row.npwp : current?.npwp
+  );
   return row;
 }
 
 function publicSupplier(row) {
-  const { payout_bank, payout_account_number, payout_account_holder, ...safe } = row;
+  if (!row) return row;
+  const { payout_bank, payout_account_number, payout_account_holder, nib, npwp, ...safe } = row;
   return safe;
 }
 
 async function getAllSuppliers() {
-  return (await db.list('suppliers'))
-    .filter(supplier => supplier.is_active !== false)
-    .map(publicSupplier);
+  return (await db.list('suppliers')).filter(supplier => supplier.is_active !== false);
 }
 
 async function getSuppliersByCategory(category) {
   if (!category) return [];
   const query = category.toLowerCase().trim();
   return (await getAllSuppliers()).filter(s =>
-    s.material_category.toLowerCase().includes(query) ||
+    (s.material_category || '').toLowerCase().includes(query) ||
     (s.categories || []).some(c => c.toLowerCase().includes(query))
-  );
+  ).map(publicSupplier);
 }
 
-function addSupplier(input) {
-  return db.insert('suppliers', { id: `sup-${crypto.randomUUID()}`, ...supplierInput(input) })
-    .then(publicSupplier);
+async function addSupplier(input) {
+  const row = supplierInput(input);
+  if (!row.name || !row.phone || !row.categories?.length || !row.address ||
+      !(row.max_capacity_qty > 0) || !(row.min_order_qty > 0) ||
+      row.min_order_qty > row.max_capacity_qty) {
+    invalid('Nama, kontak, kategori, alamat, kapasitas, dan MOQ yang valid wajib diisi');
+  }
+  return db.insert('suppliers', { id: `sup-${crypto.randomUUID()}`, ...row });
 }
 
 async function updateSupplier(id, input) {
-  const rows = await db.update('suppliers', 'id', id, supplierInput(input));
-  return rows[0] ? publicSupplier(rows[0]) : null;
+  const current = await db.findOne('suppliers', 'id', id);
+  if (!current || current.is_active === false) return null;
+  const changes = supplierInput(input, current);
+  if (changes.min_order_qty !== undefined || changes.max_capacity_qty !== undefined) {
+    const minimum = changes.min_order_qty ?? Number(current.min_order_qty);
+    const capacity = changes.max_capacity_qty ?? Number(current.max_capacity_qty);
+    if (minimum > capacity) invalid('MOQ tidak boleh melebihi kapasitas');
+  }
+  const rows = await db.update('suppliers', 'id', id, changes);
+  return rows[0] || null;
+}
+
+async function getSupplierDetail(id) {
+  const supplier = await db.findOne('suppliers', 'id', id);
+  if (!supplier || supplier.is_active === false) return null;
+  const transactions = await db.listWhere('transactions', 'supplier_id', id, 'occurred_at');
+  return { ...supplier, transactions };
 }
 
 async function deleteSupplier(id) {
@@ -55,5 +123,5 @@ async function deleteSupplier(id) {
   return rows.length > 0;
 }
 
-module.exports = { getAllSuppliers, getSuppliersByCategory, addSupplier,
-  updateSupplier, deleteSupplier };
+module.exports = { getAllSuppliers, getSuppliersByCategory, getSupplierDetail,
+  addSupplier, updateSupplier, deleteSupplier, publicSupplier, verificationStatus };

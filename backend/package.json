@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/app.js",
-    "test": "node --test test/optimizer.test.js",
+    "test": "node --test test/optimizer.test.js test/supplier.test.js",
     "seed": "node supabase/seed.js"
   },
   "keywords": [],

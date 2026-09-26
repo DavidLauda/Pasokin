@@ -37,6 +37,11 @@ function findOne(table, column, value) {
   return result(getClient().from(table).select('*').eq(column, value).maybeSingle());
 }
 
+function listWhere(table, column, value, orderBy = 'created_at') {
+  return result(getClient().from(table).select('*').eq(column, value)
+    .order(orderBy, { ascending: false }));
+}
+
 function insert(table, row) {
   return result(getClient().from(table).insert(row).select('*').single());
 }
@@ -75,5 +80,5 @@ function procurementsChangedSince(timestamp) {
     .order('updated_at', { ascending: true }));
 }
 
-module.exports = { getClient, list, findOne, insert, insertMany, upsert, update, remove,
+module.exports = { getClient, list, listWhere, findOne, insert, insertMany, upsert, update, remove,
   subscribeToProcurements, unsubscribe, procurementsChangedSince };

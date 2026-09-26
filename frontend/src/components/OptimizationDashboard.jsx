@@ -57,7 +57,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                     original.max_capacity_qty ?? Infinity
                 ),
                 min_order_qty: 0,
-                reliability_score: original.reliability_score ?? 0.8
+                reliability_score: original.reliability_score ?? 0.5
             };
         });
 
@@ -68,6 +68,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                     const qty = a.qty || 0;
                     return {
                         ...a,
+                        verification_status: dispatchedSuppliers.find(candidate => candidate.supplier_id === a.supplier_id)?.verification_status,
                         qty,
                         cost: a.cost !== undefined ? a.cost : Math.round(qty * (a.price_per_unit || 0))
                     };
@@ -329,7 +330,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                                     {activeAllocations.map((a, i) => (
                                         <tr key={a.supplier_id || a.phone} className="hover:bg-slate-50/50">
                                             <td className="px-6 py-4">
-                                                <p className="font-semibold text-slate-800">{a.name}</p>
+                                                <p className="font-semibold text-slate-800">{a.name}{a.verification_status === 'verified' && <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Verified</span>}</p>
                                                 <p className="text-xs text-slate-500">{a.location || '-'}</p>
                                             </td>
                                             <td className="px-6 py-4 w-40">
@@ -398,7 +399,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                             <div key={alloc.supplier_id} className="p-6 hover:bg-slate-50/50 transition-colors">
                                 <div className="flex items-start justify-between mb-3">
                                     <div>
-                                        <h4 className="text-base font-extrabold text-slate-900">{alloc.name}</h4>
+                                        <h4 className="text-base font-extrabold text-slate-900">{alloc.name}{alloc.verification_status === 'verified' && <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Verified</span>}</h4>
                                         {reply && (
                                             <p className="text-xs text-slate-400 font-bold mt-0.5">
                                                 {new Date(reply.received_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}

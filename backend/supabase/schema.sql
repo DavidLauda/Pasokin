@@ -35,6 +35,9 @@ create table if not exists public.suppliers (
   lead_time_days numeric not null default 0 check (lead_time_days >= 0),
   verification_status public.verification_status not null default 'unverified',
   reliability_score numeric not null default 0.5 check (reliability_score between 0 and 1),
+  nib text,
+  npwp text,
+  payment_terms text,
   payout_bank text,
   payout_account_number text,
   payout_account_holder text,
@@ -119,6 +122,9 @@ create table if not exists public.allocations (
 );
 
 alter table public.suppliers add column if not exists is_active boolean not null default true;
+alter table public.suppliers add column if not exists nib text;
+alter table public.suppliers add column if not exists npwp text;
+alter table public.suppliers add column if not exists payment_terms text;
 alter table public.allocations add column if not exists speed_score numeric;
 
 create table if not exists public.payments (

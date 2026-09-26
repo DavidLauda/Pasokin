@@ -77,6 +77,12 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
    `SUPABASE_SERVICE_ROLE_KEY` hanya boleh ada di environment backend atau file `.env` lokal yang diabaikan Git. Jangan memasukkannya ke Vite, frontend, atau commit. Browser menerima pembaruan status melalui endpoint backend `/api/procurements/events`, sehingga anon key tidak diperlukan oleh frontend. Seluruh tabel memakai RLS dan akses anon dicabut.
 
+   Form supplier publik tersedia di `/daftar-supplier`; Manajemen Supplier tetap berada di dashboard. NIB/NPWP diperiksa formatnya saja (NIB 13 digit, NPWP 15 atau 16 digit); badge Verified berarti self-declared, belum terhubung ke OSS. Skor reliability dimulai dari 0,5 dan hanya berubah lewat outcome transaksi. Nomor identitas serta rekening tidak dikirim kembali oleh endpoint publik supplier.
+
+   Geocoding alamat memakai Google Geocoding API jika `GOOGLE_GEOCODING_API_KEY` disetel **hanya di backend**. Tanpa key atau jika pencarian gagal, supplier tetap dapat memilih pin pada peta dan mengisi koordinat manual. Peta memakai tile OpenStreetMap dengan atribusi. Lihat [dokumentasi Google Geocoding](https://developers.google.com/maps/documentation/geocoding/guides-v3/requests-geocoding) untuk menyiapkan key server.
+
+   Detail legal dan rekening supplier hanya dibuka lewat endpoint admin dengan `PASOKIN_ADMIN_TOKEN` dari environment backend. Masukkan token tersebut di panel detail Manajemen Supplier; token tidak disimpan di browser. Tanpa token, endpoint publik hanya menampilkan data operasional. API dashboard lainnya masih memerlukan autentikasi/otorisasi menyeluruh sebelum produksi.
+
 3. **Siapkan database:**
    Jalankan [`backend/supabase/schema.sql`](backend/supabase/schema.sql) di Supabase SQL Editor. Lalu impor data lama satu kali dari folder `backend`:
    ```bash
