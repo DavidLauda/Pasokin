@@ -9,7 +9,7 @@ router.post('/register', async (req, res, next) => {
 });
 
 router.post('/login', async (req, res, next) => {
-  try { res.json(await authService.signIn(req.body?.email, req.body?.password)); }
+  try { res.json(await authService.signIn(req.body?.email, req.body?.password, req.body?.role)); }
   catch (error) { next(error); }
 });
 

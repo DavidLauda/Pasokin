@@ -25,7 +25,11 @@ test('buyer and supplier routes require the matching authenticated role', async 
     : token === 'supplier-token'
       ? { id: 'supplier-1', email: 'supplier@example.com', app_metadata: { pasokin_role: 'supplier', supplier_id: 'sup-owned' } }
       : null;
-  authService.signIn = async () => ({ access_token: 'buyer-token', user: { role: 'buyer' } });
+  let selectedRole = null;
+  authService.signIn = async (_email, _password, role) => {
+    selectedRole = role;
+    return { access_token: 'buyer-token', user: { role: 'buyer' } };
+  };
   authService.register = async () => ({ access_token: 'supplier-token', user: { role: 'supplier' } });
   dataStore.getSupplierDetail = async id => ({ id, name: 'Mitra Satu' });
   dataStore.addSupplier = async (changes, id) => ({ id, ...changes });
@@ -35,9 +39,10 @@ test('buyer and supplier routes require the matching authenticated role', async 
     await new Promise(resolve => server.once('listening', resolve));
     const base = `http://127.0.0.1:${server.address().port}/api`;
     const login = await fetch(`${base}/auth/login`, { method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'buyer@example.com', password: 'password123' }) });
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'buyer@example.com', password: 'password123', role: 'buyer' }) });
     assert.equal(login.status, 200);
     assert.equal((await login.json()).user.role, 'buyer');
+    assert.equal(selectedRole, 'buyer');
     const register = await fetch(`${base}/auth/register`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'supplier@example.com', password: 'password123', role: 'supplier' }) });
     assert.equal(register.status, 201);

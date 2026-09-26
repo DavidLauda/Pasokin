@@ -27,10 +27,17 @@ function credentialsError(message, status = 400) {
   return error;
 }
 
-async function signIn(email, password) {
+async function signIn(email, password, role) {
+  if (!['buyer', 'supplier'].includes(role)) {
+    throw credentialsError('Pilih peran Buyer atau Supplier sebelum masuk');
+  }
   const { data, error } = await authClient().auth.signInWithPassword({ email, password });
   if (error || !data.session || !['buyer', 'supplier'].includes(data.user?.app_metadata?.pasokin_role)) {
     throw credentialsError('Email atau kata sandi tidak valid', 401);
+  }
+  if (data.user.app_metadata.pasokin_role !== role) {
+    const accountRole = data.user.app_metadata.pasokin_role === 'buyer' ? 'Buyer' : 'Supplier';
+    throw credentialsError(`Akun ini terdaftar sebagai ${accountRole}. Pilih peran yang sesuai.`, 403);
   }
   return {
     access_token: data.session.access_token,
@@ -59,7 +66,7 @@ async function register({ email, password, name, role }) {
     /already|registered|exists/i.test(error.message) ? 'Email sudah terdaftar' : 'Gagal membuat akun',
     /already|registered|exists/i.test(error.message) ? 409 : 400
   );
-  return signIn(normalizedEmail, password);
+  return signIn(normalizedEmail, password, role);
 }
 
 async function refresh(refreshToken) {

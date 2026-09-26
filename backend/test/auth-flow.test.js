@@ -43,7 +43,9 @@ test('Supabase Auth registration, login, refresh, verification, and logout flow'
     assert.equal(registered.user.email, 'mitra@example.com');
     assert.match(user.app_metadata.supplier_id, /^sup-/);
     assert.equal(requests[0].body.email_confirm, true);
-    assert.equal((await auth.signIn('mitra@example.com', 'password123')).user.role, 'supplier');
+    assert.equal((await auth.signIn('mitra@example.com', 'password123', 'supplier')).user.role, 'supplier');
+    await assert.rejects(auth.signIn('mitra@example.com', 'password123', 'buyer'), error =>
+      error.status === 403 && /terdaftar sebagai Supplier/.test(error.message));
     assert.equal((await auth.refresh('refresh-token')).access_token, 'access-token');
     assert.equal((await auth.getUser('access-token')).id, 'user-1');
     await auth.signOut('access-token');
