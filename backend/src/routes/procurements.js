@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const procurementsStore = require('../services/procurementsStore');
 const dispatchLog = require('../services/dispatchLog');
+const { haversineDistance } = require('../services/distance');
 
 const router = express.Router();
 
@@ -60,15 +61,23 @@ router.get('/:id', async (req, res, next) => {
     const [logs, messages, allocationResult, suppliersResult] = await Promise.all([
       dispatchLog.getAllLogs(), procurementsStore.messages(procurement.id),
       db.getClient().from('allocations').select('*').eq('procurement_id', procurement.id),
-      db.getClient().from('suppliers').select('id,supplier_uuid,name')
+      db.getClient().from('suppliers').select('id,supplier_uuid,name,lat,lng,location_verified')
     ]);
     if (allocationResult.error) throw new Error(`Supabase: ${allocationResult.error.message}`);
     if (suppliersResult.error) throw new Error(`Supabase: ${suppliersResult.error.message}`);
     const suppliersById = new Map(suppliersResult.data.map(supplier => [supplier.id, supplier]));
     const suppliersByUuid = new Map(suppliersResult.data.map(supplier => [supplier.supplier_uuid, supplier]));
+    const buyer = procurement.buyer_info || {};
     res.json({ ...procurement,
       dispatched_suppliers: logs.filter(log => log.dispatch_id === procurement.id)
-        .map(log => ({ ...log, supplier_uuid: suppliersById.get(log.supplier_id)?.supplier_uuid })),
+        .map(log => {
+          const supplier = suppliersById.get(log.supplier_id);
+          const distance = supplier?.location_verified
+            ? haversineDistance(buyer.delivery_lat, buyer.delivery_lng, supplier.lat, supplier.lng)
+            : null;
+          return { ...log, supplier_uuid: supplier?.supplier_uuid,
+            ...(distance === null ? {} : { distance_km: distance }) };
+        }),
       allocations: allocationResult.data,
       messages: messages.map(message => ({ ...message,
         supplier_name: suppliersByUuid.get(message.supplier_id)?.name || 'Supplier' })) });

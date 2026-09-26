@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const dataStore = require('../services/dataStore');
 const geminiService = require('../services/geminiService');
+const { haversineDistance, isValidPoint } = require('../services/distance');
 
 router.post('/', async (req, res) => {
   try {
@@ -45,6 +46,16 @@ router.post('/', async (req, res) => {
       // RFQ di-blast ke semua supplier yang materialnya cocok; ranking & alokasi
       // baru dihitung setelah supplier membalas (lihat POST /api/optimize/from-replies),
       // karena hanya supplier sendiri yang benar-benar tahu apa yang sanggup mereka penuhi.
+
+      const deliveryLat = req.body.delivery_lat;
+      const deliveryLng = req.body.delivery_lng;
+      const hasDeliveryPoint = isValidPoint(deliveryLat, deliveryLng);
+      candidates = candidates.map(supplier => {
+          const safe = dataStore.publicSupplier(supplier);
+          if (!hasDeliveryPoint || !supplier.location_verified) return safe;
+          const distance = haversineDistance(deliveryLat, deliveryLng, supplier.lat, supplier.lng);
+          return distance === null ? safe : { ...safe, distance_km: distance };
+      });
 
       res.json({
         requirement,

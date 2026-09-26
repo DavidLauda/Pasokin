@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Package, Wallet, Calendar, Scale, Loader2, ChevronDown, ChevronUp, Sparkles, X, Check, Edit3, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 import WhatsAppStatusModal from './WhatsAppStatusModal';
+import SupplierLocationPicker from './SupplierLocationPicker';
 
 export default function RequirementForm({ onConfirm }) {
     // Natural language input
@@ -16,6 +17,12 @@ export default function RequirementForm({ onConfirm }) {
     const [budgetStr, setBudgetStr] = useState('');
     const [budgetNum, setBudgetNum] = useState(0);
     const [targetDate, setTargetDate] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
+    const deliveryAddressRef = useRef('');
+    const [deliveryLocation, setDeliveryLocation] = useState({ lat: '', lng: '' });
+    const [showDeliveryMap, setShowDeliveryMap] = useState(false);
+    const [deliveryMessage, setDeliveryMessage] = useState('');
+    const [findingDelivery, setFindingDelivery] = useState(false);
     
     // Priority buttons
     const [priority, setPriority] = useState('balanced'); // 'cost' | 'speed' | 'balanced'
@@ -64,6 +71,28 @@ export default function RequirementForm({ onConfirm }) {
 
     const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
 
+    const findDeliveryLocation = async () => {
+        if (deliveryAddress.trim().length < 10) return;
+        const address = deliveryAddress;
+        setFindingDelivery(true);
+        setDeliveryMessage('Mencari titik tujuan…');
+        try {
+            const { data } = await client.post('/suppliers/geocode', { address });
+            if (deliveryAddressRef.current === address) {
+                setDeliveryLocation({ lat: data.lat, lng: data.lng });
+                setShowDeliveryMap(true);
+                setDeliveryMessage('Titik tujuan ditemukan. Periksa pin pada peta.');
+            }
+        } catch {
+            if (deliveryAddressRef.current === address) {
+                setDeliveryMessage('Alamat tidak ditemukan. Pilih titik tujuan lewat pin peta.');
+                setShowDeliveryMap(true);
+            }
+        } finally {
+            setFindingDelivery(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -95,6 +124,12 @@ export default function RequirementForm({ onConfirm }) {
             };
         }
 
+        if (deliveryLocation.lat !== '' && deliveryLocation.lng !== '') {
+            payload.delivery_lat = Number(deliveryLocation.lat);
+            payload.delivery_lng = Number(deliveryLocation.lng);
+            payload.delivery_address = deliveryAddress.trim();
+        }
+
         setIsLoading(true);
         const toastId = toast.loading("AI sedang menganalisis kebutuhan Anda...");
 
@@ -109,7 +144,11 @@ export default function RequirementForm({ onConfirm }) {
             }
 
             toast.dismiss(toastId);
-            setParsedRequirement({ ...parsed, priority: payload.priority || parsed.priority });
+            setParsedRequirement({ ...parsed, priority: payload.priority || parsed.priority,
+                ...(payload.delivery_lat !== undefined ? {
+                    delivery_lat: payload.delivery_lat, delivery_lng: payload.delivery_lng,
+                    delivery_address: payload.delivery_address
+                } : {}) });
             setCandidates(cands);
             setShowSummary(true);
         } catch (err) {
@@ -278,6 +317,22 @@ export default function RequirementForm({ onConfirm }) {
                     </div>
                 )}
 
+                <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+                    <label htmlFor="delivery-address" className="block text-sm font-bold text-slate-800">Lokasi pengiriman (opsional)</label>
+                    <p className="text-xs text-slate-500">Tambahkan titik tujuan untuk melihat jarak ke supplier. Lokasi ini tidak memengaruhi peringkat alokasi.</p>
+                    <input id="delivery-address" value={deliveryAddress}
+                        onChange={event => { deliveryAddressRef.current = event.target.value; setDeliveryAddress(event.target.value); setDeliveryLocation({ lat: '', lng: '' }); setDeliveryMessage(''); }}
+                        placeholder="Alamat pengiriman lengkap" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+                    <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={findDeliveryLocation} disabled={findingDelivery || deliveryAddress.trim().length < 10}
+                            className="rounded-lg border border-teal-700 px-3 py-2 text-xs font-semibold text-teal-700 disabled:opacity-50">{findingDelivery ? 'Mencari…' : 'Cari alamat'}</button>
+                        <button type="button" onClick={() => setShowDeliveryMap(value => !value)} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">{showDeliveryMap ? 'Tutup peta' : 'Pilih pin manual'}</button>
+                    </div>
+                    {deliveryMessage && <p role="status" className="text-xs text-slate-600">{deliveryMessage}</p>}
+                    {showDeliveryMap && <SupplierLocationPicker lat={deliveryLocation.lat} lng={deliveryLocation.lng}
+                        locationLabel="pengiriman" onChange={point => { setDeliveryLocation(point); setDeliveryMessage('Titik tujuan dipilih.'); }} />}
+                </div>
+
                 {/* Priority Buttons */}
                 <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6">
                     <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4">Prioritas</h3>
@@ -378,6 +433,11 @@ export default function RequirementForm({ onConfirm }) {
                                 </p>
                                 <p className="text-xs text-teal-600 mt-1">Jika dikonfirmasi, AI akan langsung mengirim RFQ ke semua supplier tersebut via WhatsApp.</p>
                             </div>
+                            {candidates.some(candidate => candidate.distance_km != null) && <div className="rounded-xl border border-slate-200 p-3">
+                                <p className="text-xs font-bold text-slate-700">Estimasi jarak dari titik pengiriman</p>
+                                <ul className="mt-2 space-y-1 text-xs text-slate-600">{candidates.filter(candidate => candidate.distance_km != null).map(candidate =>
+                                    <li key={candidate.id} className="flex justify-between gap-3"><span>{candidate.name}</span><span className="tabular-nums">{Number(candidate.distance_km).toLocaleString('id-ID', { maximumFractionDigits: 1 })} km</span></li>)}</ul>
+                            </div>}
                         </div>
                         
                         <div className="p-5 border-t border-slate-100 bg-white flex justify-end gap-3">

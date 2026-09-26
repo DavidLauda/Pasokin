@@ -25,6 +25,7 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel, selfS
   const [form, setForm] = useState(() => initialData(supplier));
   const [extraCategory, setExtraCategory] = useState('');
   const [locationMessage, setLocationMessage] = useState('');
+  const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
@@ -38,14 +39,19 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel, selfS
   const geocode = async () => {
     if (form.address.trim().length < 10) return;
     const address = form.address;
+    const previousLat = form.lat;
+    const previousLng = form.lng;
+    setGeocoding(true);
     setLocationMessage('Mencari koordinat alamat…');
     try {
       const { data } = await client.post('/suppliers/geocode', { address });
-      setForm(prev => prev.address === address && prev.lat === '' && prev.lng === ''
+      setForm(prev => prev.address === address && prev.lat === previousLat && prev.lng === previousLng
         ? { ...prev, lat: data.lat, lng: data.lng } : prev);
       setLocationMessage('Koordinat ditemukan. Periksa posisi pin pada peta.');
     } catch (requestError) {
       setLocationMessage(requestError.response?.data?.error || 'Koordinat tidak ditemukan. Pilih pin pada peta.');
+    } finally {
+      setGeocoding(false);
     }
   };
 
@@ -133,9 +139,11 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel, selfS
 
     {step === 1 && <div className="space-y-4">
       <div><label className={labelClass} htmlFor="supplier-address">Alamat lengkap *</label>
-        <textarea id="supplier-address" rows="2" className={inputClass} value={form.address} onChange={event => setForm(prev => ({ ...prev, address: event.target.value, lat: '', lng: '' }))} onBlur={geocode} required /></div>
+        <textarea id="supplier-address" rows="2" className={inputClass} value={form.address} onChange={event => { setForm(prev => ({ ...prev, address: event.target.value, lat: '', lng: '' })); setLocationMessage(''); }} required />
+        <button type="button" onClick={geocode} disabled={geocoding || form.address.trim().length < 10} className="mt-2 rounded-lg border border-teal-700 px-3 py-1.5 text-xs font-semibold text-teal-700 disabled:opacity-50">{geocoding ? 'Mencari…' : 'Cari alamat di peta'}</button>
+        <p className="mt-1 text-xs text-slate-500">Opsional. Saat menyimpan, alamat akan dicari otomatis jika belum ada pin. Registrasi tetap berhasil bila alamat tidak ditemukan.</p></div>
       {locationMessage && <p className="text-xs text-slate-600" role="status">{locationMessage}</p>}
-      <SupplierLocationPicker lat={form.lat} lng={form.lng} onChange={point => setForm(prev => ({ ...prev, ...point }))} />
+      <SupplierLocationPicker lat={form.lat} lng={form.lng} onChange={point => { setForm(prev => ({ ...prev, ...point })); setLocationMessage('Pin lokasi dipilih secara manual.'); }} />
       <div className="grid grid-cols-2 gap-3">
         <div><label className={labelClass} htmlFor="supplier-lat">Latitude</label><input id="supplier-lat" type="number" step="any" min="-90" max="90" className={inputClass} value={form.lat} onChange={event => update('lat', event.target.value)} /></div>
         <div><label className={labelClass} htmlFor="supplier-lng">Longitude</label><input id="supplier-lng" type="number" step="any" min="-180" max="180" className={inputClass} value={form.lng} onChange={event => update('lng', event.target.value)} /></div>

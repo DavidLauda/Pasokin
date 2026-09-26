@@ -5,6 +5,7 @@ const whatsappService = require('../services/whatsappService');
 const dispatchLog = require('../services/dispatchLog');
 const procurementsStore = require('../services/procurementsStore');
 const crypto = require('crypto');
+const { isValidPoint } = require('../services/distance');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -37,7 +38,13 @@ router.post('/', async (req, res) => {
       const dispatch_id = isFinalDecision ? req.body.dispatch_id : crypto.randomUUID();
       let procurement = null;
       if (!isFinalDecision) {
-          procurement = await procurementsStore.create(dispatch_id, requirement, { companyName: companyName || null });
+          const buyerInfo = { companyName: companyName || null };
+          if (isValidPoint(requirement.delivery_lat, requirement.delivery_lng)) {
+              buyerInfo.delivery_lat = Number(requirement.delivery_lat);
+              buyerInfo.delivery_lng = Number(requirement.delivery_lng);
+              buyerInfo.delivery_address = String(requirement.delivery_address || '').trim();
+          }
+          procurement = await procurementsStore.create(dispatch_id, requirement, buyerInfo);
       }
       const results = [];
       let remainingAllocationQty = requirement.quantity > 0 ? requirement.quantity : 0;
