@@ -102,14 +102,14 @@ export default function RequirementForm({ onConfirm }) {
         
         if (showManualForm) {
             // Manual form validation
-            if (!materialName || !quantity || budgetNum <= 0 || !targetDate) {
+            if (!materialName || !quantity || !unit.trim() || budgetNum <= 0 || !targetDate) {
                 toast.error("Mohon lengkapi semua field dengan benar.");
                 return;
             }
             payload = {
                 materialName,
                 quantity: parseFloat(quantity),
-                unit,
+                unit: unit.trim(),
                 maxBudget: budgetNum,
                 targetDeliveryDate: new Date(targetDate).toISOString(),
                 priority: getPriorityValues()
@@ -163,6 +163,12 @@ export default function RequirementForm({ onConfirm }) {
     };
 
     const handleConfirm = () => {
+        const confirmedUnit = String(parsedRequirement.unit || '').trim();
+        if (!confirmedUnit) {
+            toast.error('Satuan harus diisi sebelum RFQ dikirim.');
+            return;
+        }
+        setParsedRequirement(prev => ({ ...prev, unit: confirmedUnit }));
         setShowSummary(false);
 
         // Backend mengembalikan maksimal lima kandidat untuk satu RFQ.
@@ -220,6 +226,10 @@ export default function RequirementForm({ onConfirm }) {
 
     return (
         <div className="w-full max-w-2xl mx-auto">
+            <datalist id="rfq-unit-suggestions">
+                {['kg', 'ton', 'sak', 'lembar', 'batang', 'meter', 'pcs', 'dus', 'karung'].map(item =>
+                    <option key={item} value={item} />)}
+            </datalist>
             {/* Header */}
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -287,11 +297,9 @@ export default function RequirementForm({ onConfirm }) {
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-600 mb-1.5">Satuan</label>
-                                <select value={unit} onChange={e => setUnit(e.target.value)}
-                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 bg-slate-50/50 text-slate-900 font-medium transition-all appearance-none"
-                                >
-                                    <option value="kg">kg</option><option value="ton">ton</option><option value="batang">batang</option><option value="meter">meter</option><option value="pcs">pcs</option>
-                                </select>
+                                <input type="text" list="rfq-unit-suggestions" value={unit} onChange={e => setUnit(e.target.value)}
+                                    maxLength={40} placeholder="kg, sak, lembar..." required={showManualForm}
+                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 bg-slate-50/50 text-slate-900 font-medium transition-all" />
                             </div>
                         </div>
 
@@ -405,12 +413,10 @@ export default function RequirementForm({ onConfirm }) {
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Satuan</label>
-                                        <select value={parsedRequirement.unit}
+                                        <input type="text" list="rfq-unit-suggestions" value={parsedRequirement.unit || ''}
                                             onChange={(e) => setParsedRequirement(prev => ({...prev, unit: e.target.value}))}
-                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 appearance-none"
-                                        >
-                                            <option value="kg">kg</option><option value="ton">ton</option><option value="batang">batang</option><option value="meter">meter</option><option value="pcs">pcs</option>
-                                        </select>
+                                            maxLength={40} placeholder="Contoh: sak" required
+                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900" />
                                     </div>
                                 </div>
                                 <div>
