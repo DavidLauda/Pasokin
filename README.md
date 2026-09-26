@@ -97,7 +97,7 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    - Backend API berjalan di: `http://localhost:4000`
    - Health check: `http://localhost:4000/api/health`
 
-   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dalam kedua mode, triase supplier menggunakan service Gemma. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp. Atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend yang dapat diakses Fonnte, bukan `localhost`.
+   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dalam kedua mode, triase supplier menggunakan service Gemma. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp. Pada Fonnte > Device > Edit, isi **Webhook URL** dengan `https://pasokin.vercel.app/api/wa/webhook` (atau domain publik backend yang sedang dipakai) dan aktifkan **Auto Read**. URL harus dapat menerima POST dari internet; `localhost` tidak bisa dipakai. Setelah pengaturan aktif, minta supplier mengirim ulang balasan yang sebelumnya belum masuk. Bila satu nomor supplier memiliki beberapa pengadaan aktif, balasan harus menyertakan kode `PSK-XXXX` agar cocok ke pengadaan yang benar.
 
    Backend membaca dan menulis supplier, procurement, alokasi, balasan, riwayat RFQ, dan pengaturan dari Supabase. Jalankan `cd backend && npm test` untuk uji otomatis. Untuk produksi, tambahkan autentikasi dan otorisasi pengguna di backend sebelum membuka API ke publik; RLS saja tidak membatasi pemanggil endpoint Express yang belum memiliki login.
 
