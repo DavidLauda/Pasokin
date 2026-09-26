@@ -3,6 +3,7 @@ const router = express.Router();
 const dataStore = require('../services/dataStore');
 const geminiService = require('../services/geminiService');
 const { haversineDistance, isValidPoint } = require('../services/distance');
+const { MAX_RFQ_SUPPLIERS } = require('../services/rfqLimits');
 
 router.post('/', async (req, res) => {
   try {
@@ -43,14 +44,16 @@ router.post('/', async (req, res) => {
       }
 
       // Catatan: MOQ dan lead time TIDAK dipakai untuk menyaring kandidat di sini.
-      // RFQ di-blast ke semua supplier yang materialnya cocok; ranking & alokasi
+      // RFQ dikirim ke maksimal lima supplier pertama dalam urutan pencarian;
+      // ranking & alokasi
       // baru dihitung setelah supplier membalas (lihat POST /api/optimize/from-replies),
       // karena hanya supplier sendiri yang benar-benar tahu apa yang sanggup mereka penuhi.
 
+      const totalMatches = candidates.length;
       const deliveryLat = req.body.delivery_lat;
       const deliveryLng = req.body.delivery_lng;
       const hasDeliveryPoint = isValidPoint(deliveryLat, deliveryLng);
-      candidates = candidates.map(supplier => {
+      candidates = candidates.slice(0, MAX_RFQ_SUPPLIERS).map(supplier => {
           const safe = dataStore.publicSupplier(supplier);
           if (!hasDeliveryPoint || !supplier.location_verified) return safe;
           const distance = haversineDistance(deliveryLat, deliveryLng, supplier.lat, supplier.lng);
@@ -59,7 +62,8 @@ router.post('/', async (req, res) => {
 
       res.json({
         requirement,
-        candidates
+        candidates,
+        total_matches: totalMatches
       });
   } catch (err) {
       console.error(err);

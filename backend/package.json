@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/app.js",
-    "test": "node --test test/auth-flow.test.js test/auth.test.js test/optimizer.test.js test/supplier.test.js test/location.test.js test/triage-demo.test.js test/multipleOrder.test.js test/wa-webhook.test.js test/procurement-pages.test.js",
+    "test": "node --test test/auth-flow.test.js test/auth.test.js test/optimizer.test.js test/supplier.test.js test/location.test.js test/rfq-limit.test.js test/triage-demo.test.js test/multipleOrder.test.js test/wa-webhook.test.js test/procurement-pages.test.js",
     "seed": "node supabase/seed.js"
   },
   "keywords": [],

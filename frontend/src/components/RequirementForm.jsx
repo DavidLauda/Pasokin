@@ -35,6 +35,7 @@ export default function RequirementForm({ onConfirm }) {
     const [showSummary, setShowSummary] = useState(false);
     const [parsedRequirement, setParsedRequirement] = useState(null);
     const [candidates, setCandidates] = useState([]);
+    const [totalMatches, setTotalMatches] = useState(0);
 
     // Modal status WhatsApp (QR scan / progres dispatch RFQ)
     const [waModalOpen, setWaModalOpen] = useState(false);
@@ -135,7 +136,7 @@ export default function RequirementForm({ onConfirm }) {
 
         try {
             const sourceRes = await client.post('/source', payload);
-            const { requirement: parsed, candidates: cands } = sourceRes.data;
+            const { requirement: parsed, candidates: cands, total_matches: total } = sourceRes.data;
             
             if (!cands || cands.length === 0) {
                 toast.error("Tidak ada supplier yang memenuhi kriteria.", { id: toastId });
@@ -150,6 +151,7 @@ export default function RequirementForm({ onConfirm }) {
                     delivery_address: payload.delivery_address
                 } : {}) });
             setCandidates(cands);
+            setTotalMatches(total ?? cands.length);
             setShowSummary(true);
         } catch (err) {
             console.error(err);
@@ -162,7 +164,7 @@ export default function RequirementForm({ onConfirm }) {
     const handleConfirm = () => {
         setShowSummary(false);
 
-        // Blast RFQ ke SEMUA candidates yang cocok dengan kriteria
+        // Backend mengembalikan maksimal lima kandidat untuk satu RFQ.
         const allCandidatesAllocations = candidates.map(c => {
             const qty = parsedRequirement.quantity; // Tanyakan full kuantitas ke semua supplier
             const price = c.price_per_unit || (parsedRequirement.maxBudget / parsedRequirement.quantity);
@@ -429,7 +431,7 @@ export default function RequirementForm({ onConfirm }) {
                             <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
                                 <p className="text-sm font-bold text-teal-800 flex items-center gap-2">
                                     <MessageSquare className="h-4 w-4" />
-                                    Ditemukan {candidates.length} supplier yang memenuhi kriteria
+                                    RFQ ke {candidates.length} supplier{totalMatches > candidates.length ? ` dari ${totalMatches} yang ditemukan` : ''} (maksimal 5)
                                 </p>
                                 <p className="text-xs text-teal-600 mt-1">Jika dikonfirmasi, AI akan langsung mengirim RFQ ke semua supplier tersebut via WhatsApp.</p>
                             </div>
