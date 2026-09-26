@@ -22,16 +22,16 @@ Implementasi ini menggunakan kontrak bersama tanpa mengubah `schema.sql`,
 
 Setelah skema bersama Orang A tersedia di Supabase, jalankan
 `node backend/supabase/seed-manual-confirmation.js` dari root repo. Script
-membuat satu pengadaan `PSK-TEST` memakai supplier dengan ID UUID yang sudah ada,
-dan aman dijalankan ulang. Aktifkan DEMO_MODE untuk menguji kirim WhatsApp tanpa
+membuat dua pengadaan dengan status berbeda: `PSK-TEST` perlu review manual
+(memakai `supplier_uuid` yang sudah ada) dan `PSK-DM02` baru diparsing. Script
+aman dijalankan ulang. Aktifkan DEMO_MODE untuk menguji kirim WhatsApp tanpa
 gateway live.
 
-Skema Supabase di checkout saat implementasi ini masih memakai `suppliers.id`
-bertipe text, `parsed_material_summary` bertipe jsonb, dan enum status lama.
-Script seed dan alur Orang B menunggu skema bersama Orang A yang menentukan
-`suppliers.id` UUID, `material_summary` text, status tambahan, kolom harga manual,
-dan tabel `procurement_messages`. Jangan mengubah nama atau tipe kolom Orang B
-secara terpisah.
+Skema hasil integrasi Orang A mempertahankan `suppliers.id` bertipe text untuk
+alur lama dan menambah `suppliers.supplier_uuid` untuk foreign key kontrak.
+Query Orang B memakai `supplier_uuid` ketika membaca supplier atau menulis
+`procurement_messages.supplier_id`. Pastikan migrasi skema bersama sudah
+diterapkan di Supabase sebelum menjalankan seed.
 
 ## API
 

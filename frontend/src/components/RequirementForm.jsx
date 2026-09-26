@@ -207,7 +207,7 @@ export default function RequirementForm({ onConfirm }) {
                     <button
                         type="button"
                         onClick={() => setShowManualForm(!showManualForm)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-amber-600 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-teal-600 transition-colors"
                     >
                         {showManualForm ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         {showManualForm ? 'Sembunyikan Form Manual' : 'Isi Manual'}
@@ -221,12 +221,12 @@ export default function RequirementForm({ onConfirm }) {
                             <label className="block text-sm font-bold text-slate-600 mb-1.5">Nama Material</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Package className="h-5 w-5 text-amber-500" />
+                                    <Package className="h-5 w-5 text-teal-500" />
                                 </div>
                                 <input
                                     type="text" list="category-suggestions"
                                     value={materialName} onChange={e => setMaterialName(e.target.value)}
-                                    className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
+                                    className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
                                     placeholder="Contoh: Baja Ringan" required={showManualForm}
                                 />
                                 <datalist id="category-suggestions">
@@ -239,14 +239,14 @@ export default function RequirementForm({ onConfirm }) {
                             <div className="col-span-2">
                                 <label className="block text-sm font-bold text-slate-600 mb-1.5">Kuantitas</label>
                                 <input type="number" min="0.1" step="0.1" value={quantity} onChange={e => setQuantity(e.target.value)}
-                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
+                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
                                     placeholder="1000" required={showManualForm}
                                 />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-600 mb-1.5">Satuan</label>
                                 <select value={unit} onChange={e => setUnit(e.target.value)}
-                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50/50 text-slate-900 font-medium transition-all appearance-none"
+                                    className="w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 bg-slate-50/50 text-slate-900 font-medium transition-all appearance-none"
                                 >
                                     <option value="kg">kg</option><option value="ton">ton</option><option value="batang">batang</option><option value="meter">meter</option><option value="pcs">pcs</option>
                                 </select>
@@ -256,10 +256,10 @@ export default function RequirementForm({ onConfirm }) {
                         <div>
                             <label className="block text-sm font-bold text-slate-600 mb-1.5">Batas Anggaran</label>
                             <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Wallet className="h-5 w-5 text-amber-500" /></div>
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Wallet className="h-5 w-5 text-teal-500" /></div>
                                 <div className="absolute inset-y-0 left-10 flex items-center pointer-events-none"><span className="text-slate-500 font-bold">Rp</span></div>
                                 <input type="text" value={budgetStr} onChange={handleBudgetChange}
-                                    className="pl-[4.5rem] w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 font-bold bg-slate-50/50 transition-all"
+                                    className="pl-[4.5rem] w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 text-slate-900 font-bold bg-slate-50/50 transition-all"
                                     placeholder="30.000.000" required={showManualForm}
                                 />
                             </div>
@@ -268,9 +268,9 @@ export default function RequirementForm({ onConfirm }) {
                         <div>
                             <label className="block text-sm font-bold text-slate-600 mb-1.5">Target Pengiriman</label>
                             <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="h-5 w-5 text-amber-500" /></div>
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Calendar className="h-5 w-5 text-teal-500" /></div>
                                 <input type="date" min={getTodayStr()} value={targetDate} onChange={e => setTargetDate(e.target.value)}
-                                    className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
+                                    className="pl-11 w-full border-slate-200 rounded-xl shadow-sm border py-3 px-4 focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 text-slate-900 bg-slate-50/50 font-medium transition-all"
                                     required={showManualForm}
                                 />
                             </div>
@@ -283,17 +283,17 @@ export default function RequirementForm({ onConfirm }) {
                     <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4">Prioritas</h3>
                     <div className="grid grid-cols-3 gap-3">
                         <button type="button" onClick={() => setPriority('cost')}
-                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'cost' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-md shadow-amber-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'cost' ? 'border-teal-400 bg-teal-50 text-teal-700 shadow-md shadow-teal-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
                         >
                             Prioritaskan Biaya
                         </button>
                         <button type="button" onClick={() => setPriority('speed')}
-                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'speed' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-md shadow-amber-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'speed' ? 'border-teal-400 bg-teal-50 text-teal-700 shadow-md shadow-teal-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
                         >
                             Prioritaskan Kecepatan
                         </button>
                         <button type="button" onClick={() => setPriority('balanced')}
-                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'balanced' ? 'border-amber-400 bg-amber-50 text-amber-700 shadow-md shadow-amber-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
+                            className={`py-3.5 px-4 rounded-xl text-sm font-bold border-2 transition-all ${priority === 'balanced' ? 'border-teal-400 bg-teal-50 text-teal-700 shadow-md shadow-teal-500/10' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white'}`}
                         >
                             Seimbang
                         </button>
@@ -302,7 +302,7 @@ export default function RequirementForm({ onConfirm }) {
 
                 {/* Submit */}
                 <button type="submit" disabled={isLoading}
-                    className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-2xl shadow-xl shadow-amber-500/20 text-base font-extrabold text-white bg-amber-400 hover:bg-amber-500 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200"
+                    className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-2xl shadow-xl shadow-teal-500/20 text-base font-extrabold text-white bg-teal-400 hover:bg-teal-500 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200"
                 >
                     {isLoading ? (
                         <><Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" /> AI sedang menganalisis...</>
@@ -318,7 +318,7 @@ export default function RequirementForm({ onConfirm }) {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                                <Sparkles className="h-5 w-5 text-amber-500" />
+                                <Sparkles className="h-5 w-5 text-teal-500" />
                                 Ringkasan AI
                             </h3>
                             <button type="button" onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-200 transition-colors">
@@ -334,7 +334,7 @@ export default function RequirementForm({ onConfirm }) {
                                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Material</label>
                                     <input type="text" value={parsedRequirement.materialName}
                                         onChange={(e) => setParsedRequirement(prev => ({...prev, materialName: e.target.value}))}
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900"
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -342,14 +342,14 @@ export default function RequirementForm({ onConfirm }) {
                                         <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Kuantitas</label>
                                         <input type="number" value={parsedRequirement.quantity}
                                             onChange={(e) => setParsedRequirement(prev => ({...prev, quantity: parseFloat(e.target.value) || 0}))}
-                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900"
                                         />
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Satuan</label>
                                         <select value={parsedRequirement.unit}
                                             onChange={(e) => setParsedRequirement(prev => ({...prev, unit: e.target.value}))}
-                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900 appearance-none"
+                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 appearance-none"
                                         >
                                             <option value="kg">kg</option><option value="ton">ton</option><option value="batang">batang</option><option value="meter">meter</option><option value="pcs">pcs</option>
                                         </select>
@@ -359,24 +359,24 @@ export default function RequirementForm({ onConfirm }) {
                                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Budget Maks (Rp)</label>
                                     <input type="number" value={parsedRequirement.maxBudget}
                                         onChange={(e) => setParsedRequirement(prev => ({...prev, maxBudget: parseInt(e.target.value) || 0}))}
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900"
                                     />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Target Pengiriman</label>
                                     <input type="date" value={parsedRequirement.targetDeliveryDate?.split('T')[0]}
                                         onChange={(e) => setParsedRequirement(prev => ({...prev, targetDeliveryDate: new Date(e.target.value).toISOString()}))}
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-amber-500/20 focus:border-amber-500 font-bold text-slate-900"
+                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900"
                                     />
                                 </div>
                             </div>
                             
-                            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-                                <p className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                            <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
+                                <p className="text-sm font-bold text-teal-800 flex items-center gap-2">
                                     <MessageSquare className="h-4 w-4" />
                                     Ditemukan {candidates.length} supplier yang memenuhi kriteria
                                 </p>
-                                <p className="text-xs text-amber-600 mt-1">Jika dikonfirmasi, AI akan langsung mengirim RFQ ke semua supplier tersebut via WhatsApp.</p>
+                                <p className="text-xs text-teal-600 mt-1">Jika dikonfirmasi, AI akan langsung mengirim RFQ ke semua supplier tersebut via WhatsApp.</p>
                             </div>
                         </div>
                         
@@ -387,7 +387,7 @@ export default function RequirementForm({ onConfirm }) {
                                 <X className="h-4 w-4" /> Batal
                             </button>
                             <button type="button" onClick={handleConfirm}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-amber-400 hover:bg-amber-500 text-white font-extrabold rounded-xl shadow-lg shadow-amber-500/20 transition-all"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-teal-400 hover:bg-teal-500 text-white font-extrabold rounded-xl shadow-lg shadow-teal-500/20 transition-all"
                             >
                                 <Check className="h-4 w-4" /> Konfirmasi & Kirim
                             </button>
