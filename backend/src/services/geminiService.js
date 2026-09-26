@@ -184,6 +184,7 @@ IMPORTANT CONTEXT:
 - If no budget/price figure is mentioned anywhere in the input, set "maxBudget" to null -- do not guess or assume a default value.
 - If the budget is stated as a per-unit price (e.g. "65rb per sak" for a quantity in sak), multiply it by the requested quantity to get the total "maxBudget", not the per-unit figure.
 - Normalize the unit "kilogram" to "kg" in the output "unit" field.
+- If the quantity is stated as a range (e.g. "60-70", "100-120 lembar"), use the midpoint, rounded to the nearest whole number -- NOT the minimum or the maximum. Example: "sekitar 60-70 lembar" -> quantity: 65.
 
 Raw requirement: "${rawInput}"`;
 
