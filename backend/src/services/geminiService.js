@@ -14,16 +14,53 @@ function parseIndoNumber(numStr) {
 const QTY_UNIT_WORDS = 'kg|ton|batang|meter|pcs|pieces|unit|lembar|dus|karung|sak|liter|roll|gulung|buah|pack|box|kardus|m2|m3';
 const BUDGET_KEYWORDS = /rp|idr|budget|anggaran|maksimal/i;
 
+// P2: "N hari kerja" cuma menghitung Senin-Jumat (skip Sabtu-Minggu)
+function addBusinessDays(date, n) {
+    let remaining = n;
+    while (remaining > 0) {
+        date.setDate(date.getDate() + 1);
+        const day = date.getDay(); // 0 = Minggu, 6 = Sabtu
+        if (day !== 0 && day !== 6) remaining--;
+    }
+    return date;
+}
+
+// P2: "akhir bulan" (bulan berjalan atau bulan depan lewat monthOffset).
+// Pakai setMonth(..., 0) di atas SALINAN date (bukan constructor Y/M/D baru),
+// supaya jam-menit-detik aslinya ikut kebawa -- constructor Y/M/D mereset ke
+// tengah malam local time, yang bisa geser mundur 1 hari kalau dibandingkan
+// sebagai tanggal UTC (timezone WIB = UTC+7).
+function lastDayOfMonth(date, monthOffset = 0) {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + monthOffset + 1, 0);
+    return d;
+}
+
+// P2: "minggu ini juga" / "akhir minggu ini" = Minggu di minggu berjalan
+function nextSunday(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Minggu
+    d.setDate(d.getDate() + (day === 0 ? 0 : 7 - day));
+    return d;
+}
+
 function heuristicParser(rawInput) {
-    const defaultDate = new Date();
+    let defaultDate = new Date();
     const lowerInput = rawInput.toLowerCase();
 
     // Terima "N hari/minggu/bulan", dengan atau tanpa akhiran "lagi"/"kedepan"/"ke depan"
+    const hariKerjaMatch = lowerInput.match(/(\d+)\s*hari\s*kerja\b/);
     const bulanMatch = lowerInput.match(/(\d+)\s*bulan(?:\s*(?:lagi|kedepan|ke depan))?\b/);
     const mingguMatch = lowerInput.match(/(\d+)\s*minggu(?:\s*(?:lagi|kedepan|ke depan))?\b/);
     const hariMatch = lowerInput.match(/(\d+)\s*hari(?:\s*(?:lagi|kedepan|ke depan))?\b/);
 
-    if (bulanMatch) {
+    if (hariKerjaMatch) {
+        // P2: hitung hari kerja saja, bukan hari kalender
+        defaultDate = addBusinessDays(defaultDate, parseInt(hariKerjaMatch[1], 10));
+    } else if (lowerInput.includes('sebelum akhir bulan depan')) {
+        // P2: harus dicek sebelum 'bulan depan' generik di bawah
+        defaultDate = lastDayOfMonth(defaultDate, 1);
+    } else if (bulanMatch) {
         defaultDate.setMonth(defaultDate.getMonth() + parseInt(bulanMatch[1], 10));
     } else if (mingguMatch) {
         defaultDate.setDate(defaultDate.getDate() + parseInt(mingguMatch[1], 10) * 7);
@@ -33,9 +70,16 @@ function heuristicParser(rawInput) {
         defaultDate.setMonth(defaultDate.getMonth() + 1);
     } else if (lowerInput.includes('minggu depan')) {
         defaultDate.setDate(defaultDate.getDate() + 7);
+    } else if (lowerInput.includes('akhir bulan')) {
+        // P2: tanggal terakhir bulan berjalan
+        defaultDate = lastDayOfMonth(defaultDate, 0);
+    } else if (lowerInput.includes('minggu ini juga') || lowerInput.includes('akhir minggu ini')) {
+        // P2: hari Minggu di minggu berjalan
+        defaultDate = nextSunday(defaultDate);
     } else if (lowerInput.includes('lusa')) {
         defaultDate.setDate(defaultDate.getDate() + 2);
-    } else if (lowerInput.includes('besok')) {
+    } else if (lowerInput.includes('secepatnya') || lowerInput.includes('asap') || lowerInput.includes('besok')) {
+        // P2: "secepatnya"/"asap" disamakan dengan "besok" (+1 hari)
         defaultDate.setDate(defaultDate.getDate() + 1);
     } else if (lowerInput.includes('hari ini')) {
         // do nothing, keep today
@@ -48,7 +92,7 @@ function heuristicParser(rawInput) {
         materialName: "Aluminium Grade-A",
         quantity: 1000,
         unit: "kg",
-        maxBudget: 30000000,
+        maxBudget: null, // P1: default null, bukan angka tebakan -- diisi di bawah kalau memang disebutkan
         targetDeliveryDate: defaultDate.toISOString(),
         priority: { cost: 40, speed: 40, risk: 20 }
     };
@@ -72,14 +116,28 @@ function heuristicParser(rawInput) {
         }
     }
 
-    const budgetMatch = lowerInput.match(/(?:rp|idr|budget|anggaran|maksimal)\s*(\d+(?:[.,]\d+)*)\s*(ribu|juta|jt|miliar|milyar)?/i);
+    // P1: kalau tidak ada angka budget disebut sama sekali, maxBudget tetap null
+    // (sudah di-set di object literal di atas) -- tidak pernah ditebak.
+    const budgetMatch = lowerInput.match(/(?:rp|idr|budget|anggaran|maksimal)\s*(\d+(?:[.,]\d+)*)\s*(ribu|rb|juta|jt|miliar|milyar)?/i);
     if (budgetMatch) {
         let budget = parseIndoNumber(budgetMatch[1]);
         const unit = budgetMatch[2]?.toLowerCase();
-        if (unit === 'ribu') budget *= 1000;
+        if (unit === 'ribu' || unit === 'rb') budget *= 1000;
         else if (unit === 'juta' || unit === 'jt') budget *= 1000000;
         else if (unit === 'miliar' || unit === 'milyar') budget *= 1000000000;
         else if (budget < 1000) budget *= 1000000; // angka kecil tanpa satuan eksplisit diasumsikan "juta"
+
+        // P4: budget per-unit (mis. "65rb per sak" untuk 300 sak) dikali qty jadi
+        // total budget, bukan disimpan apa adanya sebagai angka per-unit.
+        const afterBudget = lowerInput.slice(
+            budgetMatch.index + budgetMatch[0].length,
+            budgetMatch.index + budgetMatch[0].length + 20
+        );
+        const perUnitMatch = afterBudget.match(new RegExp(`^\\s*(?:/|per)\\s*(?:${QTY_UNIT_WORDS}|unit)\\b`, 'i'));
+        if (perUnitMatch) {
+            budget *= parsed.quantity;
+        }
+
         parsed.maxBudget = budget;
     }
 
@@ -105,10 +163,17 @@ async function parseRequirementIntent(rawInput) {
   }
 }
 The priority values must sum to 100. If priorities are not specified, assign a balanced default (e.g. 40, 40, 20). 
-IMPORTANT CONTEXT: 
-- Today's date is: ${todayStr}. 
+IMPORTANT CONTEXT:
+- Today's date is: ${todayStr}.
 - Resolve any relative dates in the prompt (e.g., "bulan depan", "besok", "minggu depan") accurately based on today's date.
 - If target delivery date is completely unspecified, use a date 7 days from today.
+- "secepatnya" or "asap" means +1 day from today (same as "besok").
+- "X hari kerja" (business days) means count only Monday-Friday, skipping Saturdays and Sundays.
+- "akhir bulan" (without "depan") means the last day of the CURRENT month.
+- "minggu ini juga" or "akhir minggu ini" means the Sunday of the current week.
+- "sebelum akhir bulan depan" means the last day of NEXT month.
+- If no budget/price figure is mentioned anywhere in the input, set "maxBudget" to null -- do not guess or assume a default value.
+- If the budget is stated as a per-unit price (e.g. "65rb per sak" for a quantity in sak), multiply it by the requested quantity to get the total "maxBudget", not the per-unit figure.
 
 Raw requirement: "${rawInput}"`;
 
