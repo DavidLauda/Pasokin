@@ -1,15 +1,26 @@
-# Baseline 
+# Baseline — 26 Sep 2026
 
 ## Run info
-- **Code measured:** commit `2796198` 
-- **Run time:** 09.31–09.35 WIB
+- **Code measured:** commit `10d0004` 
+- **Run time:** 10.15–10.20 WIB
 - **Runner:** `backend/eval/pasokin_eval.ipynb` (Colab, T4 GPU), label `baseline`
 - **Models:**
-  - Parser: code calls `gemini-2.5-flash` — **but every call fell back to the regex heuristic** (see Parser section)
+  - Parser: `gemini-3.5-flash-lite` via the Gemini API — 36/36 cases answered by Gemini, 0 heuristic fallbacks  
   - Triage: `google/gemma-2b-it` + LoRA adapter v1 (`triage-service/adapter/`), `DEMO_MODE=false`, served locally on the Colab GPU
   - Optimizer: deterministic Weighted Sum + greedy waterfall (no model)
 - **Cases:** triage 48 · parser 38 (36 run, 2 skipped as ambiguous: parser_035, parser_036) · optimizer 22 (20 with a verified expected allocation)
-- **Warnings during run:** parser: 36/36 cases ran on the heuristic fallback. Triage: 0 service errors. Optimizer: 0 crashes.
+- **Warnings during run:** none — 0 heuristic fallbacks, 0 triage service errors, 0 optimizer crashes.
+- **Reproducibility:** triage and optimizer produced identical numbers on an earlier run at commit `97d283a` (triage uses greedy decoding, `do_sample=False`).
+
+### Why there are two parser runs
+The first run (commit `97d283a`, file `results/parser_baseline_heuristic.json`) showed that **every** parser call fell back to the regex heuristic: the Gemini API returned `404 NOT_FOUND` because `gemini-2.5-flash` is no longer available to new API users. The backend used the same model name, so **production was silently running on the heuristic for every buyer request** (finding P0). The model name was updated in all 4 Gemini calls (commit `10d0004`) and the baseline was re-measured on the real model. The heuristic run is kept as evidence:
+
+| Parser, same 36 cases | Heuristic (production before fix) | Gemini (baseline) |
+| --- | --- | --- |
+| Overall pass rate | 5.6% | 80.6% |
+| materialName | 5.6% | 97.2% |
+| maxBudget | 66.7% | 91.7% |
+| targetDeliveryDate | 52.8% | 91.7% |
 
 ## Headline numbers
 
@@ -18,8 +29,8 @@
 | Triage | False-Confirmed rate (lower is better) | **40.7%** (11 of 27 "confirmed" were wrong) |
 | Triage | Missed-confirmation rate | 33.3% (8 of 24 real confirmations missed) |
 | Triage | Price extraction accuracy | 58.3% |
-| Parser | Overall pass rate (heuristic) | 5.6% |
-| Parser | maxBudget / delivery date accuracy | 66.7% / 52.8% |
+| Parser | Overall pass rate | 80.6% (29/36) |
+| Parser | maxBudget / delivery date accuracy | 91.7% / 91.7% |
 | Optimizer | Test pass rate | 77.3% (17/22) |
 | Optimizer | Constraint violation rate | 13.6% (3/22, all `late`) |
 
@@ -37,7 +48,7 @@
 | Extraction — price | 0.583 |
 | Extraction — lead_time_days | 0.417 |
 | Overall pass rate (class + all fields) | 0.146 |
-| Avg latency per call (GPU) | 4.35 s |
+| Avg latency per call (GPU) | 4.44 s |
 
 **Confusion matrix** (positive = `confirmed`)
 
@@ -86,42 +97,44 @@ The model outputs recurring values (3, 15, 30) instead of computing days from th
 
 ---
 
-## 2. Parser (requirement → structured RFQ)
-
-> **Important:** all 36 scored cases ran on the **regex heuristic fallback**, not on Gemini. The Gemini API returned `404 NOT_FOUND` for every call: *"This model models/gemini-2.5-flash is no longer available to new users."*
-> This is not a test artefact — the backend calls the same model name, so with our API key **production is also silently running on the heuristic for every buyer request.** This baseline therefore measures what users actually get today.
+## 2. Parser (requirement → structured RFQ, Gemini)
 
 | Field | Accuracy |
 | --- | --- |
-| materialName | 0.056 |
-| quantity | 0.972 |
-| unit | 0.750 |
-| maxBudget | 0.667 |
-| targetDeliveryDate | 0.528 |
-| **Overall pass rate** | **0.056** |
+| materialName | 0.972 |
+| quantity | 1.000 |
+| unit | 0.972 |
+| maxBudget | 0.917 |
+| targetDeliveryDate | 0.917 |
+| **Overall pass rate** | **0.806** (29/36) |
 
-Method counts: heuristic 36, gemini 0.
+Method counts: gemini 36, heuristic 0.
+
+### Failures (7 cases)
+
+| Case | Input (short) | Expected | Got | Type |
+| --- | --- | --- | --- | --- |
+| parser_029, 032, 037 | "budget ga masalah" / "budget belum tau" | `maxBudget: null` | `0` | P1 |
+| parser_037 | "yang penting cepet", no date | +1 day | +7 days (prompt default) | P2 |
+| parser_009 | "minggu ini juga" (Mon 12 Oct) | Sun 18 Oct | Mon 19 Oct | P3 |
+| parser_014 | "kirim rabu depan" (Mon 19 Oct) | Tue 27 Oct | Wed 28 Oct | **Test case error** |
+| parser_031 | "5000 kilogram" | `kg` | `kilogram` | P4 |
+| parser_034 | "besi hollow merk Krakatau Steel 4x4" | "Besi Hollow 4x4" | name incl. brand | P5 |
 
 ### Weaknesses
 
-**P0. Gemini model unavailable → silent fallback on 100% of requests.** No error reaches the user or the logs they'd look at; the fallback is only visible in stderr.
+**P1. Missing budget becomes `0` instead of `null` — 3 cases.** The prompt's JSON shape requires a number, so "no budget" is forced into `0`. Today this is accidentally harmless (the optimizer treats `0` as "no limit" via `maxBudget || Infinity`), but any code that reads `0` literally would block every allocation.
 
-**P1. Material name is hardcoded — 34/36 wrong.** The heuristic only recognises "baja" and "kain/katun"; everything else becomes "Aluminium Grade-A".
+**P2. Urgency words don't affect the deadline.** "Yang penting cepet" with no date gets the prompt's 7-day default. The prompt has no rule for urgency.
 
-**P2. Units outside a fixed list become "kg" — 9 cases.** kaleng, kubik, biji, truk → kg (parser_004, 009, 012, 013, 019, 022, 026, 030, 033).
+**P3. "Minggu ini juga" resolved to next Monday** instead of the end of the current week (parser_009).
 
-**P3. Decimal budgets inflated 10× — 4 cases.** The dot in "24.8 juta" is treated as a thousands separator → 248.000.000 (parser_011, 017, 025).
+**P4. Units are not normalised.** "kilogram" is returned as-is instead of `kg`, so the same unit can appear in two spellings across RFQs.
 
-**P4. Budget defaults and formats — 12 cases wrong in total.**
-- Missing budget becomes 30.000.000 instead of `null` (parser_029, 032, 037)
-- Budget not detected when the keyword isn't directly before the number ("budgetnya 12jt", "bujdet 13,5 juta", "maks 2,2jt") → default 30.000.000 (parser_004, 018, 020)
-- Per-unit budget not multiplied: "65rb per sak" × 300 sak → 65.000.000 instead of 19.500.000 (parser_002)
+**P5. Brand kept inside the material name** (parser_034). This is partly a product decision: the brand matters for procurement, so it may deserve its own field rather than being dropped.
 
-**P5. Absolute and weekday dates ignored → default +7 days — 17 cases.**
-"20 Oktober" (parser_003), "tanggal 30 oktober" (008), "tgl 15 november" (024), "rabu depan" (014), "jumat ini" (023), "hr ini jg" (016), "bsk" (018).
-
-### What works
-Quantity extraction (97.2%) and simple relative dates ("besok", "3 hari lagi", "minggu depan").
+### Test-case correction
+parser_014's expected date is wrong: the case note says *"Rabu depan dari Senin 19 Okt = Rabu 28 Okt"*, but the offset was entered as 8 days (27 Oct, a Tuesday). The model's answer (28 Oct) is correct. With the offset fixed to 9, the parser scores **30/36 = 83.3%** overall and **94.4%** on `targetDeliveryDate`. The case file is corrected before any cycle is run, and cycle results are compared against the corrected numbers.
 
 ---
 
@@ -161,14 +174,9 @@ Quantity extraction (97.2%) and simple relative dates ("besok", "3 hari lagi", "
 
 ---
 
-## Validity notes
-- Parser numbers measure the **heuristic**, not Gemini (see P0). This is intentional for the baseline because it reflects production behaviour; the Gemini baseline is measured in the first parser cycle after the model name is updated.
-- Parser dates are evaluated with "today" frozen at each case's `message_date`, 09.00 WIB.
-- Optimizer_008's expected allocation assumes the desired behaviour (late suppliers excluded), not current behaviour.
-
-## Planned order for Phase II (by business risk)
-1. **Parser P0** — update the model name to one currently available (check Google's current model list), rerun → real Gemini baseline.
-2. **Triage T1/T4/T5** — deterministic guardrail after the model: supplier price above RFQ, qty below request, lead time past target, or no numbers found in the reply → force `needs_manual_review`. Targets the 40.7% False-Confirmed rate.
-3. **Optimizer O1 + O2** — deadline filter before scoring; `??` instead of `||` for weights.
-4. **Triage T2/T3** — retrain with price-format variations and RFQ-date context (decision point ~13.30).
+## Planned order for Phase II
+1. **Triage T1/T4/T5** — deterministic guardrail after the model: supplier price above RFQ, qty below request, lead time past target, or no numbers found in the reply → force `needs_manual_review`. Targets the 40.7% False-Confirmed rate.
+2. **Optimizer O1 + O2** — deadline filter before scoring; `??` instead of `||` for weights.
+3. **Triage T2/T3** — retrain with price-format variations and RFQ-date context (decision point ~13.30).
+4. **Parser P1/P2/P4** — allow `null` budget in the prompt, add an urgency rule, normalise units. Cheap prompt changes, lower risk than the items above.
 5. **Optimizer O3** — MOQ-aware allocation, or report as unresolved with the shortfall shown to the buyer.
