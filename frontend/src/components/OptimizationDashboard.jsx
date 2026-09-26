@@ -131,7 +131,9 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
         
         const toastId = toast.loading(`Mensimulasikan balasan (${style})...`);
         try {
-            await client.post('/wa-replies/simulate', { phone: supplier.phone, style });
+            await client.post('/wa-replies/simulate', { phone: supplier.phone,
+                supplier_id: supplier.supplier_id, style,
+                procurement_id: data.dispatch_id });
             toast.success("Simulasi berhasil", { id: toastId });
             fetchReplies();
         } catch (err) {
@@ -146,7 +148,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
         }
         const toastId = toast.loading("Mensimulasikan dan menganalisis semua balasan sekaligus...");
         try {
-            await client.post('/wa-replies/simulate-all', { dispatch_id: data.dispatch_id });
+            await client.post('/wa-replies/simulate-all', { procurement_id: data.dispatch_id });
             toast.success("Simulasi batch selesai!", { id: toastId });
             fetchReplies();
         } catch (err) {

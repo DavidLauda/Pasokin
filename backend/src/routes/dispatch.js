@@ -35,8 +35,9 @@ router.post('/', async (req, res) => {
           : await geminiService.generateWAMessagesForAllocations(allocations, requirement, companyName || "Tim Procurement Cerdas");
 
       const dispatch_id = isFinalDecision ? req.body.dispatch_id : crypto.randomUUID();
+      let procurement = null;
       if (!isFinalDecision) {
-          await procurementsStore.create(dispatch_id, requirement, { companyName: companyName || null });
+          procurement = await procurementsStore.create(dispatch_id, requirement, { companyName: companyName || null });
       }
       const results = [];
       let remainingAllocationQty = requirement.quantity > 0 ? requirement.quantity : 0;
@@ -57,7 +58,15 @@ router.post('/', async (req, res) => {
       for (const msgData of messagesToDispatch) {
           const allocRef = allocations.find(a => a.supplier_id === msgData.supplier_id);
           try {
-              const isSent = await whatsappService.sendMessage(msgData.phone, msgData.message);
+              const outgoingText = isFinalDecision ? msgData.message
+                  : `[${procurement.reference_code}] ${msgData.message}\nMohon sertakan kode ${procurement.reference_code} saat membalas.`;
+              if (!isFinalDecision) {
+                  const supplierUuid = await procurementsStore.supplierUuid(msgData.supplier_id);
+                  if (!supplierUuid) throw new Error(`Supplier tidak ditemukan: ${msgData.supplier_id}`);
+                  await procurementsStore.addMessage({ procurementId: dispatch_id,
+                      supplierId: supplierUuid, direction: 'outbound', rawText: outgoingText });
+              }
+              const isSent = await whatsappService.sendMessage(msgData.phone, outgoingText);
               const status = isSent ? "sent" : "failed";
 
               if (!isFinalDecision) {
@@ -66,7 +75,7 @@ router.post('/', async (req, res) => {
                       supplier_id: msgData.supplier_id,
                       name: allocRef?.name,
                       phone: msgData.phone,
-                      message_sent: msgData.message,
+                      message_sent: outgoingText,
                       requirement_snapshot: {
                           materialName: requirement.materialName,
                           quantity: requirement.quantity,
@@ -116,7 +125,7 @@ router.post('/', async (req, res) => {
           await dispatchLog.markFinalSubmitted(req.body.dispatch_id);
       }
 
-      res.json({ dispatch_id, results });
+      res.json({ dispatch_id, reference_code: procurement?.reference_code || null, results });
 
   } catch (err) {
       console.error(err);

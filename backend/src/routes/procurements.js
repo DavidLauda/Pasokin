@@ -1,7 +1,52 @@
 const express = require('express');
 const db = require('../db');
+const procurementsStore = require('../services/procurementsStore');
+const dispatchLog = require('../services/dispatchLog');
 
 const router = express.Router();
+
+router.get('/', async (req, res, next) => {
+  try {
+    const [procurements, logs] = await Promise.all([
+      procurementsStore.list(), dispatchLog.getAllLogs()
+    ]);
+    const counts = new Map();
+    for (const log of logs) {
+      const suppliers = counts.get(log.dispatch_id) || new Set();
+      suppliers.add(log.supplier_id);
+      counts.set(log.dispatch_id, suppliers);
+    }
+    res.json(procurements.filter(row => row.status !== 'completed').map(row => ({
+      id: row.id, reference_code: row.reference_code,
+      material_summary: row.material_summary, status: row.status,
+      supplier_count: counts.get(row.id)?.size || 0,
+      created_at: row.created_at, updated_at: row.updated_at
+    })));
+  } catch (error) { next(error); }
+});
+
+router.get('/:id', async (req, res, next) => {
+  if (req.params.id === 'events') return next();
+  try {
+    const procurement = await procurementsStore.get(req.params.id);
+    if (!procurement) return res.status(404).json({ error: 'Procurement tidak ditemukan' });
+    const [logs, messages, allocationResult, suppliersResult] = await Promise.all([
+      dispatchLog.getAllLogs(), procurementsStore.messages(procurement.id),
+      db.getClient().from('allocations').select('*').eq('procurement_id', procurement.id),
+      db.getClient().from('suppliers').select('id,supplier_uuid,name')
+    ]);
+    if (allocationResult.error) throw new Error(`Supabase: ${allocationResult.error.message}`);
+    if (suppliersResult.error) throw new Error(`Supabase: ${suppliersResult.error.message}`);
+    const suppliersById = new Map(suppliersResult.data.map(supplier => [supplier.id, supplier]));
+    const suppliersByUuid = new Map(suppliersResult.data.map(supplier => [supplier.supplier_uuid, supplier]));
+    res.json({ ...procurement,
+      dispatched_suppliers: logs.filter(log => log.dispatch_id === procurement.id)
+        .map(log => ({ ...log, supplier_uuid: suppliersById.get(log.supplier_id)?.supplier_uuid })),
+      allocations: allocationResult.data,
+      messages: messages.map(message => ({ ...message,
+        supplier_name: suppliersByUuid.get(message.supplier_id)?.name || 'Supplier' })) });
+  } catch (error) { next(error); }
+});
 
 // The service role subscribes to Supabase; browsers receive status-only events.
 // This avoids exposing buyer and payout records with a public Supabase key.

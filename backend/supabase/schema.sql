@@ -4,8 +4,11 @@
 
 do $$ begin
   create type public.procurement_status as enum
-    ('parsing', 'optimizing', 'awaiting_approval', 'dispatched', 'triaging', 'completed');
+    ('parsing', 'optimizing', 'awaiting_approval', 'dispatched', 'triaging',
+     'needs_manual_review', 'awaiting_summary_confirmation', 'completed');
 exception when duplicate_object then null; end $$;
+alter type public.procurement_status add value if not exists 'needs_manual_review' before 'completed';
+alter type public.procurement_status add value if not exists 'awaiting_summary_confirmation' before 'completed';
 do $$ begin
   create type public.payment_status as enum
     ('awaiting_payment', 'paid_held', 'shipped', 'delivered', 'released', 'expired', 'disputed', 'refunded');
@@ -16,6 +19,7 @@ exception when duplicate_object then null; end $$;
 
 create table if not exists public.suppliers (
   id text primary key,
+  supplier_uuid uuid not null default gen_random_uuid() unique,
   name text not null,
   phone text not null,
   material_category text not null,
@@ -41,13 +45,62 @@ create table if not exists public.suppliers (
 
 create table if not exists public.procurements (
   id uuid primary key,
+  reference_code text not null unique check (reference_code ~ '^PSK-[A-Z0-9]{4}$'),
   buyer_info jsonb not null default '{}'::jsonb,
+  material_summary text not null default '',
   parsed_material_summary jsonb not null default '{}'::jsonb,
   status public.procurement_status not null default 'parsing',
-  weight_preset_used jsonb not null default '{}'::jsonb,
+  weight_preset_used text,
+  negotiated_supplier_id uuid references public.suppliers(supplier_uuid),
+  manual_price numeric,
+  manual_unit text,
+  manual_quantity numeric,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Additive migration for databases created before concurrent procurements.
+alter table public.suppliers add column if not exists supplier_uuid uuid default gen_random_uuid();
+update public.suppliers set supplier_uuid = gen_random_uuid() where supplier_uuid is null;
+alter table public.suppliers alter column supplier_uuid set not null;
+create unique index if not exists suppliers_supplier_uuid_key on public.suppliers (supplier_uuid);
+alter table public.procurements add column if not exists reference_code text;
+alter table public.procurements add column if not exists material_summary text not null default '';
+alter table public.procurements add column if not exists negotiated_supplier_id uuid references public.suppliers(supplier_uuid);
+alter table public.procurements add column if not exists manual_price numeric;
+alter table public.procurements add column if not exists manual_unit text;
+alter table public.procurements add column if not exists manual_quantity numeric;
+alter table public.procurements alter column weight_preset_used drop default;
+alter table public.procurements alter column weight_preset_used type text using weight_preset_used::text;
+with numbered as (
+  select id, row_number() over (order by created_at, id) as ordinal
+  from public.procurements where reference_code is null
+)
+update public.procurements p
+set reference_code = 'PSK-' || lpad(upper(to_hex(numbered.ordinal::int)), 4, '0')
+from numbered where p.id = numbered.id;
+alter table public.procurements alter column reference_code set not null;
+create unique index if not exists procurements_reference_code_key on public.procurements (reference_code);
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'procurements_reference_code_format') then
+    alter table public.procurements add constraint procurements_reference_code_format
+      check (reference_code ~ '^PSK-[A-Z0-9]{4}$');
+  end if;
+end $$;
+
+create table if not exists public.procurement_messages (
+  id uuid primary key default gen_random_uuid(),
+  procurement_id uuid not null references public.procurements(id) on delete cascade,
+  supplier_id uuid not null references public.suppliers(supplier_uuid),
+  message_type text not null check (message_type in ('negotiation', 'summary_confirmation')),
+  direction text not null check (direction in ('outbound', 'inbound')),
+  raw_text text not null,
+  classified_as text,
+  created_at timestamptz not null default now(),
+  check (message_type = 'negotiation' or classified_as is null)
+);
+create index if not exists procurement_messages_scope_idx
+  on public.procurement_messages (procurement_id, message_type, created_at desc);
 
 create table if not exists public.allocations (
   id uuid primary key default gen_random_uuid(),
@@ -107,6 +160,7 @@ create table if not exists public.dispatch_logs (
 create table if not exists public.supplier_replies (
   id uuid primary key,
   procurement_id uuid references public.procurements(id) on delete set null,
+  procurement_message_id uuid references public.procurement_messages(id) on delete set null,
   legacy_dispatch_id text,
   supplier_id text references public.suppliers(id) on delete set null,
   supplier_name text,
@@ -120,6 +174,8 @@ create table if not exists public.supplier_replies (
   override_note text,
   resolved boolean not null default false
 );
+alter table public.supplier_replies add column if not exists procurement_message_id uuid
+  references public.procurement_messages(id) on delete set null;
 
 create table if not exists public.app_settings (
   key text primary key,
@@ -171,6 +227,7 @@ create trigger transactions_reliability
 
 alter table public.suppliers enable row level security;
 alter table public.procurements enable row level security;
+alter table public.procurement_messages enable row level security;
 alter table public.allocations enable row level security;
 alter table public.payments enable row level security;
 alter table public.transactions enable row level security;
@@ -182,10 +239,10 @@ alter table public.app_settings enable row level security;
 -- cannot query these tables. Only the backend's service role can access them.
 revoke all on public.suppliers, public.procurements, public.allocations,
   public.payments, public.transactions, public.dispatch_logs,
-  public.supplier_replies, public.app_settings from anon, authenticated;
+  public.supplier_replies, public.procurement_messages, public.app_settings from anon, authenticated;
 grant all on public.suppliers, public.procurements, public.allocations,
   public.payments, public.transactions, public.dispatch_logs,
-  public.supplier_replies, public.app_settings to service_role;
+  public.supplier_replies, public.procurement_messages, public.app_settings to service_role;
 
 -- Supabase Realtime watches status changes; the backend forwards safe events.
 do $$ begin
