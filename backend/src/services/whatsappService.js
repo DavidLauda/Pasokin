@@ -5,7 +5,6 @@ const triageService = require('./triageService');
 const crypto = require('crypto');
 const configService = require('./configService');
 const procurementsStore = require('./procurementsStore');
-const { correlateReply } = require('./replyCorrelation');
 
 // Fonnte: WhatsApp gateway pihak ketiga. Device ditautkan lewat dashboard Fonnte
 // (fonnte.com), bukan lewat QR di aplikasi ini — jauh lebih kecil risiko akun
@@ -17,29 +16,20 @@ let cachedStatus = null;
 let cachedStatusAt = 0;
 const STATUS_CACHE_MS = 10000; // hindari nge-hit API Fonnte tiap kali modal polling (3 detik sekali)
 
-async function processReplyClassification(replyEntry, latestDispatch, messageId = null) {
+async function processReplyClassification(replyEntry, latestDispatch) {
     try {
         const result = await triageService.classifySupplierReply(
             latestDispatch.requirement_snapshot,
             latestDispatch.allocation_snapshot,
-            replyEntry.message_received
+            replyEntry.message_received,
+            latestDispatch.dispatched_at
         );
         await repliesStore.updateReply(replyEntry.reply_id, {
             classification: result.classification,
             ai_summary: result.ai_summary,
             ai_extracted: result.ai_extracted
         });
-        if (messageId) await procurementsStore.classifyMessage(messageId, result.classification);
-        if (replyEntry.dispatch_id) {
-            const current = await procurementsStore.get(replyEntry.dispatch_id);
-            if (current && !['awaiting_summary_confirmation', 'completed'].includes(current.status)) {
-                if (result.classification === 'needs_manual_review') {
-                    await procurementsStore.setStatus(replyEntry.dispatch_id, 'needs_manual_review');
-                } else if (current.status !== 'needs_manual_review') {
-                    await procurementsStore.setStatus(replyEntry.dispatch_id, 'triaging');
-                }
-            }
-        }
+        if (replyEntry.dispatch_id) await procurementsStore.setStatus(replyEntry.dispatch_id, 'triaging');
     } catch (e) {
         console.error("Gagal klasifikasi reply", e);
         await repliesStore.updateReply(replyEntry.reply_id, {
@@ -47,12 +37,6 @@ async function processReplyClassification(replyEntry, latestDispatch, messageId 
             ai_summary: "Terjadi error saat analisis AI. Butuh review manual.",
             ai_extracted: null
         });
-        if (messageId) await procurementsStore.classifyMessage(messageId, 'needs_manual_review');
-        if (replyEntry.dispatch_id) {
-            const current = await procurementsStore.get(replyEntry.dispatch_id);
-            if (current && !['awaiting_summary_confirmation', 'completed'].includes(current.status))
-                await procurementsStore.setStatus(replyEntry.dispatch_id, 'needs_manual_review');
-        }
     }
 }
 
@@ -141,34 +125,15 @@ async function handleIncomingWebhook(payload) {
     const messageText = String(payload?.message || '').trim();
     if (!senderPhone || !messageText) return;
 
-    // One supplier can have several open RFQs. The code and sender must match
-    // the same dispatched procurement; the latest phone match is not enough.
-    const { procurement, dispatch: latestDispatch } = await correlateReply(messageText, senderPhone, {
-        findProcurement: procurementsStore.getByReference,
-        listDispatches: dispatchLog.getAllLogs, normalizePhone
+    const logs = (await dispatchLog.getAllLogs()).filter(l => {
+        return normalizePhone(l.phone) === senderPhone;
     });
-    const summaryReply = latestDispatch && procurement.status === 'awaiting_summary_confirmation';
-    let messageId = null;
-    if (latestDispatch) {
-        const supplierUuid = await procurementsStore.supplierUuid(latestDispatch.supplier_id);
-        const message = await procurementsStore.addMessage({ procurementId: procurement.id,
-            supplierId: supplierUuid,
-            messageType: summaryReply ? 'summary_confirmation' : 'negotiation',
-            direction: 'inbound', rawText: messageText });
-        messageId = message.id;
-    }
 
-    // Summary confirmation is deliberately left for a buyer's manual decision.
-    if (summaryReply) {
-        await procurementsStore.setStatus(procurement.id, 'awaiting_summary_confirmation');
-        return { procurement_id: procurement.id, message_id: messageId,
-            message_type: 'summary_confirmation' };
-    }
+    const latestDispatch = logs.length > 0 ? logs[logs.length - 1] : null;
 
     const reply_id = crypto.randomUUID();
     const replyEntry = {
         reply_id,
-        procurement_message_id: messageId,
         dispatch_id: latestDispatch ? latestDispatch.dispatch_id : null,
         supplier_id: latestDispatch ? latestDispatch.supplier_id : null,
         supplier_name: latestDispatch ? latestDispatch.name : null,
@@ -176,7 +141,7 @@ async function handleIncomingWebhook(payload) {
         message_received: messageText,
         received_at: new Date().toISOString(),
         classification: latestDispatch ? "pending" : "unmatched",
-        ai_summary: latestDispatch ? "Sedang menganalisis..." : "Pesan tidak cocok dengan kode RFQ dan supplier",
+        ai_summary: latestDispatch ? "Sedang menganalisis..." : "Pesan tidak dikenal (tidak ada histori RFQ)",
         ai_extracted: null,
         human_override: false,
         resolved: false
@@ -186,11 +151,9 @@ async function handleIncomingWebhook(payload) {
 
     if (latestDispatch) {
         // Jangan ditunggu, biarkan asynchronous
-        processReplyClassification(replyEntry, latestDispatch, messageId).catch(error =>
+        processReplyClassification(replyEntry, latestDispatch).catch(error =>
             console.error('Gagal memproses triase webhook', error));
     }
-    return { procurement_id: procurement?.id || null, message_id: messageId,
-        message_type: latestDispatch ? 'negotiation' : 'unmatched' };
 }
 
 module.exports = {

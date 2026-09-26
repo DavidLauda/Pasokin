@@ -8,7 +8,10 @@ function parseIndoNumber(numStr) {
     return parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
 }
 
-const QTY_UNIT_WORDS = 'kg|ton|batang|meter|pcs|pieces|unit|lembar|dus|karung|sak|liter|roll|gulung|buah|pack|box|kardus|m2|m3';
+// Cycle 2: "kilogram" ditambahkan sebagai alias -- dinormalisasi ke "kg" di bawah
+// (bukan disimpan apa adanya sebagai "kilogram") supaya konsisten satu bentuk baku.
+const QTY_UNIT_WORDS = 'kg|kilogram|ton|batang|meter|pcs|pieces|unit|lembar|dus|karung|sak|liter|roll|gulung|buah|pack|box|kardus|m2|m3';
+const UNIT_ALIASES = { kilogram: 'kg' };
 const BUDGET_KEYWORDS = /rp|idr|budget|anggaran|maksimal/i;
 
 // P2: "N hari kerja" cuma menghitung Senin-Jumat (skip Sabtu-Minggu)
@@ -100,7 +103,8 @@ function heuristicParser(rawInput) {
     const qtyWithUnit = lowerInput.match(new RegExp(`(\\d+(?:[.,]\\d+)*)\\s*(${QTY_UNIT_WORDS})\\b`, 'i'));
     if (qtyWithUnit) {
         parsed.quantity = parseIndoNumber(qtyWithUnit[1]);
-        parsed.unit = qtyWithUnit[2];
+        const matchedUnit = qtyWithUnit[2].toLowerCase();
+        parsed.unit = UNIT_ALIASES[matchedUnit] || matchedUnit; // "kilogram" -> "kg"
     } else {
         // Satuan tidak dikenali: ambil angka pertama yang bukan bagian dari frasa budget
         const numberMatches = [...lowerInput.matchAll(/\d+(?:[.,]\d+)*/g)];
@@ -117,8 +121,16 @@ function heuristicParser(rawInput) {
     // (sudah di-set di object literal di atas) -- tidak pernah ditebak.
     const budgetMatch = lowerInput.match(/(?:rp|idr|budget|anggaran|maksimal)\s*(\d+(?:[.,]\d+)*)\s*(ribu|rb|juta|jt|miliar|milyar)?/i);
     if (budgetMatch) {
-        let budget = parseIndoNumber(budgetMatch[1]);
         const unit = budgetMatch[2]?.toLowerCase();
+        // Bug ketemu pas tes cycle 2: kalau ada kata skala eksplisit (ribu/juta/dst)
+        // NGIKUTIN angkanya, "." di situ berarti titik DESIMAL biasa ("24.8 juta" =
+        // 24,8 juta), BUKAN pemisah ribuan gaya Indonesia -- beda konvensi dari angka
+        // penuh tanpa skala (mis. "Rp12.750.000"). parseIndoNumber cuma benar buat
+        // kasus kedua; kalau dipakai juga untuk kasus pertama, "24.8 juta" jadi
+        // kebaca 248 (bukan 24.8) dan hasil akhirnya 10x kemahalan.
+        let budget = unit
+            ? parseFloat(budgetMatch[1].replace(',', '.'))
+            : parseIndoNumber(budgetMatch[1]);
         if (unit === 'ribu' || unit === 'rb') budget *= 1000;
         else if (unit === 'juta' || unit === 'jt') budget *= 1000000;
         else if (unit === 'miliar' || unit === 'milyar') budget *= 1000000000;
@@ -165,12 +177,13 @@ IMPORTANT CONTEXT:
 - Resolve any relative dates in the prompt (e.g., "bulan depan", "besok", "minggu depan") accurately based on today's date.
 - If target delivery date is completely unspecified, use a date 7 days from today.
 - "secepatnya" or "asap" means +1 day from today (same as "besok").
-- "X hari kerja" (business days) means count only Monday-Friday, skipping Saturdays and Sundays.
+- "X hari kerja" (business days) means count only Monday-Friday, skipping Saturdays and Sundays -- but this rule applies ONLY when the input literally contains the exact phrase "hari kerja". A plain "X hari" (without the word "kerja") ALWAYS means X ordinary calendar days -- never skip weekends for it, even if X is large.
 - "akhir bulan" (without "depan") means the last day of the CURRENT month.
 - "minggu ini juga" or "akhir minggu ini" means the Sunday of the current week.
 - "sebelum akhir bulan depan" means the last day of NEXT month.
 - If no budget/price figure is mentioned anywhere in the input, set "maxBudget" to null -- do not guess or assume a default value.
 - If the budget is stated as a per-unit price (e.g. "65rb per sak" for a quantity in sak), multiply it by the requested quantity to get the total "maxBudget", not the per-unit figure.
+- Normalize the unit "kilogram" to "kg" in the output "unit" field.
 
 Raw requirement: "${rawInput}"`;
 
