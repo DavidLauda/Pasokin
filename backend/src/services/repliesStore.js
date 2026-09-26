@@ -1,48 +1,31 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('../db');
 
-const filePath = path.join(__dirname, '../data/replies.json');
-
-let replies = [];
-
-if (fs.existsSync(filePath)) {
-    try {
-        replies = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    } catch (e) {
-        console.error("Error loading replies:", e);
-    }
+function toDb(reply) {
+  const { reply_id, dispatch_id, ...rest } = reply;
+  return { ...rest, id: reply_id, procurement_id: dispatch_id || null };
 }
 
-function saveReplies() {
-    fs.writeFileSync(filePath, JSON.stringify(replies, null, 2));
+function fromDb(row) {
+  if (!row) return null;
+  const { id, procurement_id, legacy_dispatch_id, ...rest } = row;
+  return { ...rest, reply_id: id, dispatch_id: procurement_id || legacy_dispatch_id };
 }
 
-function addReply(entry) {
-    replies.push(entry);
-    saveReplies();
+async function addReply(entry) {
+  return fromDb(await db.insert('supplier_replies', toDb(entry)));
 }
 
-function updateReply(reply_id, updates) {
-    const idx = replies.findIndex(r => r.reply_id === reply_id);
-    if (idx !== -1) {
-        replies[idx] = { ...replies[idx], ...updates };
-        saveReplies();
-        return replies[idx];
-    }
-    return null;
+async function updateReply(replyId, updates) {
+  const rows = await db.update('supplier_replies', 'id', replyId, updates);
+  return fromDb(rows[0]);
 }
 
-function getReply(reply_id) {
-    return replies.find(r => r.reply_id === reply_id);
+async function getReply(replyId) {
+  return fromDb(await db.findOne('supplier_replies', 'id', replyId));
 }
 
-function getAllReplies() {
-    return replies;
+async function getAllReplies() {
+  return (await db.list('supplier_replies', 'received_at')).map(fromDb);
 }
 
-module.exports = {
-    addReply,
-    updateReply,
-    getReply,
-    getAllReplies
-};
+module.exports = { addReply, updateReply, getReply, getAllReplies };

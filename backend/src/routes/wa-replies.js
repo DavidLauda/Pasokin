@@ -8,8 +8,8 @@ const dataStore = require('../services/dataStore');
 const optimizerService = require('../services/optimizerService');
 const crypto = require('crypto');
 
-router.get('/', (req, res) => {
-    let replies = repliesStore.getAllReplies();
+router.get('/', async (req, res) => {
+    let replies = await repliesStore.getAllReplies();
     if (req.query.status) {
         replies = replies.filter(r => r.classification === req.query.status);
     }
@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
     }
     
     // Attach dispatch snapshots for UI comparison
-    const allLogs = dispatchLog.getAllLogs();
+    const allLogs = await dispatchLog.getAllLogs();
     const enrichedReplies = replies.map(r => {
         const dispatch = allLogs.find(l => l.dispatch_id === r.dispatch_id && l.supplier_id === r.supplier_id);
         if (dispatch) {
@@ -34,11 +34,14 @@ router.get('/', (req, res) => {
     res.json(enrichedReplies);
 });
 
-router.post('/:reply_id/override', (req, res) => {
+router.post('/:reply_id/override', async (req, res) => {
     const { reply_id } = req.params;
     const { classification, note } = req.body;
     
-    const updated = repliesStore.updateReply(reply_id, {
+    if (!['confirmed', 'needs_manual_review'].includes(classification)) {
+        return res.status(400).json({ error: 'Klasifikasi tidak valid' });
+    }
+    const updated = await repliesStore.updateReply(reply_id, {
         classification,
         human_override: true,
         override_note: note
@@ -48,17 +51,17 @@ router.post('/:reply_id/override', (req, res) => {
     res.json(updated);
 });
 
-router.post('/:reply_id/resolve', (req, res) => {
+router.post('/:reply_id/resolve', async (req, res) => {
     const { reply_id } = req.params;
-    const reply = repliesStore.getReply(reply_id);
+    const reply = await repliesStore.getReply(reply_id);
     
     if (!reply) return res.status(404).json({ error: "Reply not found" });
 
     // Mark as resolved
-    repliesStore.updateReply(reply_id, { resolved: true });
+    await repliesStore.updateReply(reply_id, { resolved: true });
     
     // Find original dispatch to check for shortfall
-    const allLogs = dispatchLog.getAllLogs();
+    const allLogs = await dispatchLog.getAllLogs();
     const dispatch = allLogs.find(l => l.dispatch_id === reply.dispatch_id && l.supplier_id === reply.supplier_id);
     
     if (dispatch) {
@@ -73,9 +76,9 @@ router.post('/:reply_id/resolve', (req, res) => {
                 .filter(l => l.dispatch_id === dispatch.dispatch_id)
                 .map(l => l.supplier_id);
             
-            let candidates = dataStore.getSuppliersByCategory(dispatch.requirement_snapshot.materialName);
+            let candidates = await dataStore.getSuppliersByCategory(dispatch.requirement_snapshot.materialName);
             if (candidates.length < 2) {
-                 candidates = dataStore.getAllSuppliers().filter(s => 
+                 candidates = (await dataStore.getAllSuppliers()).filter(s =>
                        s.material_category.toLowerCase().includes(dispatch.requirement_snapshot.materialName.toLowerCase()) ||
                        s.name.toLowerCase().includes(dispatch.requirement_snapshot.materialName.toLowerCase())
                  );
@@ -93,7 +96,7 @@ router.post('/:reply_id/resolve', (req, res) => {
             const optimization = optimizerService.optimizeAllocation(newReq, candidates);
             
             return res.json({ 
-                updatedReply: repliesStore.getReply(reply_id), 
+                updatedReply: await repliesStore.getReply(reply_id),
                 shortfall_recommendations: {
                     requirement: newReq,
                     candidates,
@@ -103,12 +106,12 @@ router.post('/:reply_id/resolve', (req, res) => {
         }
     }
     
-    res.json({ updatedReply: repliesStore.getReply(reply_id) });
+    res.json({ updatedReply: await repliesStore.getReply(reply_id) });
 });
 
 // SIMULATE ENDPOINT (DEMO_MODE ONLY)
 router.post('/simulate', async (req, res) => {
-    if (!configService.isDemoMode()) {
+    if (!await configService.isDemoMode()) {
         return res.status(403).json({ error: "Hanya tersedia saat DEMO_MODE=true" });
     }
 
@@ -118,7 +121,7 @@ router.post('/simulate', async (req, res) => {
     console.log("Simulate called with phone:", phone, "style:", style);
 
     // Cari log dispatch terbaru untuk nomor ini
-    const logs = dispatchLog.getAllLogs().filter(l => {
+    const logs = (await dispatchLog.getAllLogs()).filter(l => {
         let lp = l.phone.replace(/\D/g, '');
         if (lp.startsWith('0')) lp = '62' + lp.substring(1);
         
@@ -157,7 +160,7 @@ router.post('/simulate', async (req, res) => {
         resolved: false
     };
 
-    repliesStore.addReply(replyEntry);
+    await repliesStore.addReply(replyEntry);
     console.log("Reply added to store");
 
     if (latestDispatch) {
@@ -167,12 +170,12 @@ router.post('/simulate', async (req, res) => {
     }
 
     console.log("Returning JSON");
-    res.json(repliesStore.getReply(reply_id));
+    res.json(await repliesStore.getReply(reply_id));
 });
 
 // SIMULATE ALL ENDPOINT (DEMO_MODE ONLY)
 router.post('/simulate-all', async (req, res) => {
-    if (!configService.isDemoMode()) {
+    if (!await configService.isDemoMode()) {
         return res.status(403).json({ error: "Hanya tersedia saat DEMO_MODE=true" });
     }
 
@@ -180,10 +183,10 @@ router.post('/simulate-all', async (req, res) => {
     if (!dispatch_id) return res.status(400).json({ error: "dispatch_id required" });
 
     // Cari semua supplier di dispatch ini yang belum punya reply
-    const allLogs = dispatchLog.getAllLogs().filter(l => l.dispatch_id === dispatch_id);
+    const allLogs = (await dispatchLog.getAllLogs()).filter(l => l.dispatch_id === dispatch_id);
     if (allLogs.length === 0) return res.status(404).json({ error: "Dispatch not found" });
 
-    const allReplies = repliesStore.getAllReplies();
+    const allReplies = await repliesStore.getAllReplies();
     const waitingLogs = allLogs.filter(l => !allReplies.some(r => r.supplier_id === l.supplier_id && r.dispatch_id === l.dispatch_id));
 
     if (waitingLogs.length === 0) {
@@ -193,7 +196,7 @@ router.post('/simulate-all', async (req, res) => {
     const newReplies = [];
     const styles = ["confirmed", "negotiate"];
 
-    waitingLogs.forEach((log, index) => {
+    for (const [index, log] of waitingLogs.entries()) {
         // Variasikan secara selang-seling (atau bisa random)
         const style = styles[index % 2];
         
@@ -220,9 +223,9 @@ router.post('/simulate-all', async (req, res) => {
             resolved: false
         };
 
-        repliesStore.addReply(replyEntry);
+        await repliesStore.addReply(replyEntry);
         newReplies.push({ replyEntry, log });
-    });
+    }
 
     // Klasifikasikan tiap reply lewat pipeline triage yang sama dengan endpoint
     // /simulate (fine-tuned triage model / heuristik demo), bukan Gemini langsung,

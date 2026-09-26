@@ -14,6 +14,8 @@ services:
       - TRIAGE_SERVICE_URL=http://triage-service:8001
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - FONNTE_TOKEN=${FONNTE_TOKEN:-}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
     depends_on:
       - triage-service
     # Install dependencies only if node_modules doesn't exist to speed up restarts

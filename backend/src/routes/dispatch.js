@@ -3,6 +3,7 @@ const router = express.Router();
 const geminiService = require('../services/geminiService');
 const whatsappService = require('../services/whatsappService');
 const dispatchLog = require('../services/dispatchLog');
+const procurementsStore = require('../services/procurementsStore');
 const crypto = require('crypto');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -17,7 +18,10 @@ router.post('/', async (req, res) => {
 
       const isFinalDecision = type === 'final';
 
-      if (isFinalDecision && dispatchLog.isFinalSubmitted(req.body.dispatch_id)) {
+      if (isFinalDecision && !req.body.dispatch_id) {
+          return res.status(400).json({ error: 'dispatch_id wajib untuk keputusan akhir' });
+      }
+      if (isFinalDecision && await dispatchLog.isFinalSubmitted(req.body.dispatch_id)) {
           return res.status(409).json({ error: "PO untuk transaksi ini sudah pernah dikirim" });
       }
 
@@ -30,7 +34,10 @@ router.post('/', async (req, res) => {
           ? geminiService.generateFinalDecisionMessages(allocations, requirement, companyName || "Tim Procurement Cerdas")
           : await geminiService.generateWAMessagesForAllocations(allocations, requirement, companyName || "Tim Procurement Cerdas");
 
-      const dispatch_id = crypto.randomUUID();
+      const dispatch_id = isFinalDecision ? req.body.dispatch_id : crypto.randomUUID();
+      if (!isFinalDecision) {
+          await procurementsStore.create(dispatch_id, requirement, { companyName: companyName || null });
+      }
       const results = [];
       let remainingAllocationQty = requirement.quantity > 0 ? requirement.quantity : 0;
       const allocatedQtyBySupplier = new Map();
@@ -54,7 +61,7 @@ router.post('/', async (req, res) => {
               const status = isSent ? "sent" : "failed";
 
               if (!isFinalDecision) {
-                  dispatchLog.addLog({
+                  await dispatchLog.addLog({
                       dispatch_id,
                       supplier_id: msgData.supplier_id,
                       name: allocRef?.name,
@@ -105,7 +112,8 @@ router.post('/', async (req, res) => {
       }
 
       if (isFinalDecision && req.body.dispatch_id) {
-          dispatchLog.markFinalSubmitted(req.body.dispatch_id);
+          await procurementsStore.createPayments(req.body.dispatch_id, allocations);
+          await dispatchLog.markFinalSubmitted(req.body.dispatch_id);
       }
 
       res.json({ dispatch_id, results });
@@ -116,9 +124,9 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
     try {
-        const logs = dispatchLog.getAllLogs();
+        const logs = await dispatchLog.getAllLogs();
         res.json(logs);
     } catch (err) {
         console.error(err);

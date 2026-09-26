@@ -14,7 +14,8 @@ graph TD
     B -->|WhatsApp Dispatch & Webhook| E[Fonnte Gateway API]
     E <-->|Real-time Messages| F[WhatsApp Web/Mobile]
 
-    B <-->|Mock DB & State| G[(Local Storage / lowdb)]
+    B <-->|Procurements, Suppliers, Replies| G[(Supabase Postgres)]
+    G -->|Realtime status changes| B
 
     %% Triage Service - Gemma 2B + LoRA adapter
     B <-->|POST /triage| H["Triage Service\n(FastAPI, Python)"]
@@ -42,6 +43,7 @@ Pasokin utilizes AI as a core architectural driver, moving beyond a simple chatb
 - Google Gemini API Key untuk parsing kebutuhan dan reasoning optimasi
 - Fonnte token hanya untuk WhatsApp live
 - Hugging Face token hanya untuk menjalankan Gemma asli (`DEMO_MODE=false`)
+- Proyek Supabase dengan akses SQL Editor dan service role key
 
 ### Instalasi & Menjalankan Aplikasi (Sesuai Ketentuan COMPFEST)
 
@@ -64,6 +66,8 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    FONNTE_TOKEN="your-fonnte-token"
    PORT=4000
    DEMO_MODE=false
+   SUPABASE_URL="https://your-project-ref.supabase.co"
+   SUPABASE_SERVICE_ROLE_KEY="your-backend-only-service-role-key"
    ```
    Pastikan akun Hugging Face sudah mendapat akses ke `google/gemma-2b-it` dan `HF_TOKEN` memiliki izin baca. Pastikan nomor WhatsApp juga sudah terhubung di dashboard Fonnte. Token Fonnte digunakan untuk mengirim pesan dan menerima balasan melalui webhook.
 
@@ -71,7 +75,17 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
    Untuk presentasi tanpa koneksi WhatsApp atau download model Gemma, gunakan `DEMO_MODE=true`. Mode ini mensimulasikan koneksi WhatsApp dan melewati loading model Gemma 2B.
 
-3. **Jalankan via Docker Compose:**
+   `SUPABASE_SERVICE_ROLE_KEY` hanya boleh ada di environment backend atau file `.env` lokal yang diabaikan Git. Jangan memasukkannya ke Vite, frontend, atau commit. Browser menerima pembaruan status melalui endpoint backend `/api/procurements/events`, sehingga anon key tidak diperlukan oleh frontend. Seluruh tabel memakai RLS dan akses anon dicabut.
+
+3. **Siapkan database:**
+   Jalankan [`backend/supabase/schema.sql`](backend/supabase/schema.sql) di Supabase SQL Editor. Lalu impor data lama satu kali dari folder `backend`:
+   ```bash
+   npm install
+   npm run seed
+   ```
+   Skrip seed membaca JSON lama hanya untuk migrasi dan aman dijalankan ulang; aplikasi tidak memakai file JSON sebagai penyimpanan runtime. Skema juga mengaktifkan Supabase Realtime untuk tabel `procurements`.
+
+4. **Jalankan via Docker Compose:**
    Kembali ke root folder `Pasokin` dan jalankan perintah:
    ```bash
    docker compose up --build
@@ -81,6 +95,10 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    - Health check: `http://localhost:4000/api/health`
 
    Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp dan triage service Gemma. Atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend yang dapat diakses Fonnte, bukan `localhost`.
+
+   Backend membaca dan menulis supplier, procurement, alokasi, balasan, riwayat RFQ, dan pengaturan dari Supabase. Jalankan `cd backend && npm test` untuk uji otomatis. Untuk produksi, tambahkan autentikasi dan otorisasi pengguna di backend sebelum membuka API ke publik; RLS saja tidak membatasi pemanggil endpoint Express yang belum memiliki login.
+
+   Saat backend berjalan dengan `DEMO_MODE=true`, jalankan `node test/supabase-smoke.js` dan `node test/realtime-smoke.js` dari folder `backend` untuk menguji alur database dan stream status. Kedua skrip menghapus data uji yang mereka buat. Stream backend memakai Supabase Realtime dan pemeriksaan database berkala sebagai cadangan saat WebSocket tidak tersedia; koneksi stream panjang perlu hosting backend yang mendukung SSE.
 
 ### Proses Loading Model Triage
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
 const app = express();
 
@@ -15,6 +16,7 @@ const dispatchRouter = require('./routes/dispatch');
 const waRouter = require('./routes/wa');
 const waRepliesRouter = require('./routes/wa-replies');
 const settingsRouter = require('./routes/settings');
+const procurementsRouter = require('./routes/procurements');
 
 app.use('/api/suppliers', suppliersRouter);
 app.use('/api/source', sourceRouter);
@@ -23,15 +25,15 @@ app.use('/api/dispatch-wa', dispatchRouter);
 app.use('/api/wa', waRouter);
 app.use('/api/wa-replies', waRepliesRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/procurements', procurementsRouter);
 
 const configService = require('./services/configService');
 
 // Health check route
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    demoMode: configService.isDemoMode()
-  });
+app.get('/api/health', async (req, res, next) => {
+  try {
+    res.json({ status: 'ok', demoMode: await configService.isDemoMode() });
+  } catch (error) { next(error); }
 });
 
 // Basic error-handling middleware
@@ -46,7 +48,7 @@ const PORT = process.env.PORT || 4000;
 const whatsappService = require('./services/whatsappService');
 
 if (require.main === module) {
-  whatsappService.initWhatsApp();
+  whatsappService.initWhatsApp().catch(error => console.error('WhatsApp init failed:', error));
   app.listen(PORT, () => {
     console.log(`Backend listening on port ${PORT}`);
   });

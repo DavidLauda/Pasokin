@@ -8,7 +8,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Sama persis dengan heuristik demo mode yang lama di geminiService.js,
 // dipertahankan supaya DEMO_MODE=true masih jalan tanpa perlu GPU/model loaded.
 async function classifySupplierReply(requirementSnapshot, allocationSnapshot, replyText) {
-    if (configService.isDemoMode()) {
+    if (await configService.isDemoMode()) {
         await sleep(2000);
         if (replyText.toLowerCase().includes('bisa') || replyText.toLowerCase().includes('oke') || replyText.toLowerCase().includes('siap')) {
             return {

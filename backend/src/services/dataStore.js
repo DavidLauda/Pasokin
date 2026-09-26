@@ -1,77 +1,59 @@
-const fs = require('fs');
-const path = require('path');
+const crypto = require('crypto');
+const db = require('../db');
 
-const dataPath = path.join(__dirname, '../data/suppliers.json');
+const editableFields = [
+  'name', 'phone', 'material_category', 'categories', 'address', 'location',
+  'lat', 'lng', 'max_capacity_qty', 'min_order_qty', 'price_per_unit', 'unit',
+  'lead_time_days', 'verification_status', 'reliability_score',
+  'payout_bank', 'payout_account_number', 'payout_account_holder'
+];
 
-// Helper untuk membaca dan menulis data
-function readData() {
-  try {
-    const data = fs.readFileSync(dataPath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading suppliers.json:', error);
-    return [];
+function supplierInput(input) {
+  const row = Object.fromEntries(editableFields
+    .filter(field => input[field] !== undefined)
+    .map(field => [field, input[field]]));
+  if (!row.material_category && Array.isArray(row.categories)) {
+    row.material_category = row.categories[0];
   }
+  if (row.material_category && !row.categories) row.categories = [row.material_category];
+  return row;
 }
 
-function writeData(data) {
-  try {
-    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Error writing suppliers.json:', error);
-  }
+function publicSupplier(row) {
+  const { payout_bank, payout_account_number, payout_account_holder, ...safe } = row;
+  return safe;
 }
 
-// Mengambil semua data supplier
-function getAllSuppliers() {
-  return readData();
+async function getAllSuppliers() {
+  return (await db.list('suppliers'))
+    .filter(supplier => supplier.is_active !== false)
+    .map(publicSupplier);
 }
 
-// Mencari supplier berdasarkan material_category dengan fuzzy/substring matching
-function getSuppliersByCategory(category) {
+async function getSuppliersByCategory(category) {
   if (!category) return [];
   const query = category.toLowerCase().trim();
-  const suppliers = readData();
-  return suppliers.filter(s => s.material_category.toLowerCase().includes(query));
+  return (await getAllSuppliers()).filter(s =>
+    s.material_category.toLowerCase().includes(query) ||
+    (s.categories || []).some(c => c.toLowerCase().includes(query))
+  );
 }
 
-// Menambah supplier baru
-function addSupplier(supplierData) {
-  const suppliers = readData();
-  const id = `sup-${Date.now()}`;
-  const newSupplier = { id, ...supplierData };
-  suppliers.push(newSupplier);
-  writeData(suppliers);
-  return newSupplier;
+function addSupplier(input) {
+  return db.insert('suppliers', { id: `sup-${crypto.randomUUID()}`, ...supplierInput(input) })
+    .then(publicSupplier);
 }
 
-// Mengupdate data supplier
-function updateSupplier(id, supplierData) {
-  const suppliers = readData();
-  const index = suppliers.findIndex(s => s.id === id);
-  if (index !== -1) {
-    suppliers[index] = { ...suppliers[index], ...supplierData, id }; // Ensure ID stays same
-    writeData(suppliers);
-    return suppliers[index];
-  }
-  return null;
+async function updateSupplier(id, input) {
+  const rows = await db.update('suppliers', 'id', id, supplierInput(input));
+  return rows[0] ? publicSupplier(rows[0]) : null;
 }
 
-// Menghapus supplier
-function deleteSupplier(id) {
-  const suppliers = readData();
-  const filtered = suppliers.filter(s => s.id !== id);
-  if (filtered.length !== suppliers.length) {
-    writeData(filtered);
-    return true;
-  }
-  return false;
+async function deleteSupplier(id) {
+  // Preserve FK-backed procurement and payment history.
+  const rows = await db.update('suppliers', 'id', id, { is_active: false });
+  return rows.length > 0;
 }
 
-module.exports = {
-  getAllSuppliers,
-  getSuppliersByCategory,
-  addSupplier,
-  updateSupplier,
-  deleteSupplier
-};
+module.exports = { getAllSuppliers, getSuppliersByCategory, addSupplier,
+  updateSupplier, deleteSupplier };

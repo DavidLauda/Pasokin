@@ -1,35 +1,13 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('../db');
 
-const configPath = path.join(__dirname, '../data/config.json');
-
-// Inisialisasi dari environment variable saat pertama kali jalan
-let config = {
-    demoMode: process.env.DEMO_MODE === 'true'
-};
-
-if (fs.existsSync(configPath)) {
-    try {
-        config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    } catch (e) {
-        console.error("Error loading config:", e);
-    }
+async function isDemoMode() {
+  const setting = await db.findOne('app_settings', 'key', 'demoMode');
+  return setting ? setting.value === true : process.env.DEMO_MODE === 'true';
 }
 
-function saveConfig() {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+async function setDemoMode(value) {
+  await db.upsert('app_settings', [{ key: 'demoMode', value: !!value }], 'key');
+  return !!value;
 }
 
-function isDemoMode() {
-    return config.demoMode;
-}
-
-function setDemoMode(value) {
-    config.demoMode = !!value;
-    saveConfig();
-}
-
-module.exports = {
-    isDemoMode,
-    setDemoMode
-};
+module.exports = { isDemoMode, setDemoMode };

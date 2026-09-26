@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const optimizerService = require('../services/optimizerService');
 const geminiService = require('../services/geminiService');
+const procurementsStore = require('../services/procurementsStore');
 
 router.post('/', async (req, res) => {
   try {
-      const { requirement, candidates } = req.body;
+      const { requirement, candidates, dispatch_id } = req.body;
       
       if (!requirement || !candidates || candidates.length === 0) {
           return res.status(400).json({ error: "Missing requirement or candidates" });
@@ -16,6 +17,10 @@ router.post('/', async (req, res) => {
       
       if (!optimization || optimization.recommended_allocations.length === 0) {
           return res.status(400).json({ error: "Tidak dapat menemukan alokasi yang valid dengan kriteria yang diberikan." });
+      }
+      if (dispatch_id) {
+          await procurementsStore.saveAllocations(dispatch_id, optimization.recommended_allocations);
+          await procurementsStore.setStatus(dispatch_id, 'awaiting_approval');
       }
 
       // 2. Dapatkan alasan bahasa natural (AI Reasoning) dari Gemini API

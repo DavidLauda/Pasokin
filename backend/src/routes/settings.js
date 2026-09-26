@@ -3,19 +3,21 @@ const router = express.Router();
 const configService = require('../services/configService');
 const whatsappService = require('../services/whatsappService');
 
-router.get('/', (req, res) => {
-    res.json({ demoMode: configService.isDemoMode() });
+router.get('/', async (req, res, next) => {
+  try { res.json({ demoMode: await configService.isDemoMode() }); }
+  catch (error) { next(error); }
 });
 
-router.post('/demo-mode', (req, res) => {
+router.post('/demo-mode', async (req, res, next) => {
+  try {
     const { demoMode } = req.body;
     if (typeof demoMode !== 'boolean') {
-        return res.status(400).json({ error: "demoMode must be a boolean" });
+      return res.status(400).json({ error: 'demoMode must be a boolean' });
     }
-    
-    configService.setDemoMode(demoMode);
-    whatsappService.reinitialize();
-    res.json({ demoMode: configService.isDemoMode() });
+    await configService.setDemoMode(demoMode);
+    await whatsappService.reinitialize();
+    res.json({ demoMode });
+  } catch (error) { next(error); }
 });
 
 module.exports = router;

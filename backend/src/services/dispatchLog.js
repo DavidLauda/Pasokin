@@ -1,48 +1,27 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('../db');
 
-const filePath = path.join(__dirname, '../data/dispatchLogs.json');
-
-let logs = [];
-
-if (fs.existsSync(filePath)) {
-    try {
-        logs = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    } catch (e) {
-        console.error("Error loading dispatch logs:", e);
-    }
+function fromDb(row) {
+  const { procurement_id, ...rest } = row;
+  return { ...rest, dispatch_id: procurement_id };
 }
 
-function saveLogs() {
-    fs.writeFileSync(filePath, JSON.stringify(logs, null, 2));
+async function addLog(entry) {
+  const { dispatch_id, ...rest } = entry;
+  return fromDb(await db.insert('dispatch_logs', { ...rest, procurement_id: dispatch_id }));
 }
 
-function addLog(entry) {
-    logs.push(entry);
-    saveLogs();
+async function getAllLogs() {
+  return (await db.list('dispatch_logs', 'dispatched_at')).map(fromDb);
 }
 
-function getAllLogs() {
-    return logs;
+async function isFinalSubmitted(dispatchId) {
+  const procurement = await db.findOne('procurements', 'id', dispatchId);
+  return procurement?.status === 'completed';
 }
 
-function isFinalSubmitted(dispatchId) {
-    return logs.some(log => log.dispatch_id === dispatchId && log.po_sent === true);
+async function markFinalSubmitted(dispatchId) {
+  await db.update('dispatch_logs', 'procurement_id', dispatchId, { po_sent: true });
+  await db.update('procurements', 'id', dispatchId, { status: 'completed' });
 }
 
-function markFinalSubmitted(dispatchId) {
-    let updated = false;
-    logs = logs.map(log => {
-        if (log.dispatch_id !== dispatchId || log.po_sent === true) return log;
-        updated = true;
-        return { ...log, po_sent: true };
-    });
-    if (updated) saveLogs();
-}
-
-module.exports = {
-    addLog,
-    getAllLogs,
-    isFinalSubmitted,
-    markFinalSubmitted
-};
+module.exports = { addLog, getAllLogs, isFinalSubmitted, markFinalSubmitted };

@@ -19,6 +19,12 @@ function App() {
     });
   }, []);
 
+  useEffect(() => {
+    const events = new EventSource(`${client.defaults.baseURL}/procurements/events`);
+    events.onmessage = () => setHistoryRefreshKey(key => key + 1);
+    return () => events.close();
+  }, []);
+
   const handleConfirm = (data) => {
     setOptimizationResult(data);
         setHistoryRefreshKey(key => key + 1);

@@ -46,7 +46,8 @@ function optimizeAllocation(requirement, candidates) {
         // Skor akhir: Penjumlahan terbobot (Weighted Sum) dari seluruh parameter
         const score = (wCost * normCost) + (wSpeed * normSpeed) + (wRisk * normRisk);
 
-        return { ...c, score };
+        return { ...c, score, cost_score: normCost,
+            speed_score: normSpeed, reliability_score_breakdown: normRisk };
     });
 
     // Urutkan supplier dari skor AI tertinggi ke terendah
@@ -96,7 +97,11 @@ function optimizeAllocation(requirement, candidates) {
             qty: qtyToTake,
             cost: actualCost,
             lead_time_days: supplier.lead_time_days,
-            phone: supplier.phone
+            phone: supplier.phone,
+            score: supplier.score,
+            cost_score: supplier.cost_score,
+            speed_score: supplier.speed_score,
+            reliability_score_breakdown: supplier.reliability_score_breakdown
         });
 
         if (qtyToTake > 0) {

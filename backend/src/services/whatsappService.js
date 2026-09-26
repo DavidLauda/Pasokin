@@ -4,6 +4,7 @@ const repliesStore = require('./repliesStore');
 const triageService = require('./triageService');
 const crypto = require('crypto');
 const configService = require('./configService');
+const procurementsStore = require('./procurementsStore');
 
 // Fonnte: WhatsApp gateway pihak ketiga. Device ditautkan lewat dashboard Fonnte
 // (fonnte.com), bukan lewat QR di aplikasi ini — jauh lebih kecil risiko akun
@@ -22,14 +23,15 @@ async function processReplyClassification(replyEntry, latestDispatch) {
             latestDispatch.allocation_snapshot,
             replyEntry.message_received
         );
-        repliesStore.updateReply(replyEntry.reply_id, {
+        await repliesStore.updateReply(replyEntry.reply_id, {
             classification: result.classification,
             ai_summary: result.ai_summary,
             ai_extracted: result.ai_extracted
         });
+        if (replyEntry.dispatch_id) await procurementsStore.setStatus(replyEntry.dispatch_id, 'triaging');
     } catch (e) {
         console.error("Gagal klasifikasi reply", e);
-        repliesStore.updateReply(replyEntry.reply_id, {
+        await repliesStore.updateReply(replyEntry.reply_id, {
             classification: "needs_manual_review",
             ai_summary: "Terjadi error saat analisis AI. Butuh review manual.",
             ai_extracted: null
@@ -38,7 +40,7 @@ async function processReplyClassification(replyEntry, latestDispatch) {
 }
 
 async function initWhatsApp() {
-    if (configService.isDemoMode()) {
+    if (await configService.isDemoMode()) {
         console.log("[MOCK] WhatsApp Service running in DEMO_MODE. No real connection will be made.");
         return;
     }
@@ -58,7 +60,7 @@ function normalizePhone(phone) {
 }
 
 async function sendMessage(phone, message) {
-    if (configService.isDemoMode()) {
+    if (await configService.isDemoMode()) {
         console.log(`[MOCK] Mengirim WA ke ${phone}...`);
         await new Promise(r => setTimeout(r, 1500));
         console.log(`[MOCK] Pesan terkirim ke ${phone}`);
@@ -83,7 +85,7 @@ async function sendMessage(phone, message) {
 }
 
 async function getStatus() {
-    if (configService.isDemoMode()) {
+    if (await configService.isDemoMode()) {
         return { connectionState: 'connected', qr: null, isDemo: true };
     }
 
@@ -108,11 +110,11 @@ async function getStatus() {
     return cachedStatus;
 }
 
-function reinitialize() {
+async function reinitialize() {
     // Tidak ada socket persisten yang perlu di-manage — cukup paksa re-check
     // status device Fonnte begitu mode demo/live berganti.
     cachedStatus = null;
-    initWhatsApp();
+    await initWhatsApp();
 }
 
 // Dipanggil dari route webhook saat Fonnte meneruskan balasan WhatsApp yang masuk
@@ -122,7 +124,7 @@ async function handleIncomingWebhook(payload) {
     const messageText = String(payload?.message || '').trim();
     if (!senderPhone || !messageText) return;
 
-    const logs = dispatchLog.getAllLogs().filter(l => {
+    const logs = (await dispatchLog.getAllLogs()).filter(l => {
         return normalizePhone(l.phone) === senderPhone;
     });
 
@@ -144,11 +146,12 @@ async function handleIncomingWebhook(payload) {
         resolved: false
     };
 
-    repliesStore.addReply(replyEntry);
+    await repliesStore.addReply(replyEntry);
 
     if (latestDispatch) {
         // Jangan ditunggu, biarkan asynchronous
-        processReplyClassification(replyEntry, latestDispatch);
+        processReplyClassification(replyEntry, latestDispatch).catch(error =>
+            console.error('Gagal memproses triase webhook', error));
     }
 }
 

@@ -25,12 +25,12 @@ router.post('/', async (req, res) => {
 
       // 1. Ambil kandidat supplier berdasarkan kategori material (fuzzy match)
       // Ini memastikan kita hanya membandingkan supplier yang relevan dengan jenis bahan baku.
-      let candidates = dataStore.getSuppliersByCategory(materialName);
+      let candidates = await dataStore.getSuppliersByCategory(materialName);
 
       // Fallback: Jika kandidat kurang dari 2, lakukan pencarian yang lebih luas
       // pada nama supplier atau kategori, memastikan demo selalu menampilkan hasil.
       if (candidates.length < 2) {
-          candidates = dataStore.getAllSuppliers().filter(s =>
+          candidates = (await dataStore.getAllSuppliers()).filter(s =>
               s.material_category.toLowerCase().includes(materialName.toLowerCase()) ||
               s.name.toLowerCase().includes(materialName.toLowerCase())
           );
@@ -38,7 +38,7 @@ router.post('/', async (req, res) => {
 
       // Fallback Ekstrem: Jika masih kosong (salah eja dsb), ambil semua supplier (Mencegah layar kosong saat demo)
       if (candidates.length === 0) {
-          candidates = dataStore.getAllSuppliers();
+          candidates = await dataStore.getAllSuppliers();
       }
 
       // Catatan: MOQ dan lead time TIDAK dipakai untuk menyaring kandidat di sini.

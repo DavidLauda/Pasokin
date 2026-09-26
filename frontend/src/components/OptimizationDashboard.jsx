@@ -62,7 +62,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
         });
 
         setIsRanking(true);
-        client.post('/optimize', { requirement: data.requirement, candidates: confirmedCandidates })
+        client.post('/optimize', { requirement: data.requirement, candidates: confirmedCandidates, dispatch_id: data.dispatch_id })
             .then(res => {
                 const initial = res.data.recommended_allocations.map(a => {
                     const qty = a.qty || 0;
@@ -109,8 +109,15 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
 
     useEffect(() => {
         fetchReplies();
-        const interval = setInterval(fetchReplies, 3000);
-        return () => clearInterval(interval);
+        const events = new EventSource(`${client.defaults.baseURL}/procurements/events`);
+        events.onmessage = event => {
+            try {
+                if (JSON.parse(event.data).id === data.dispatch_id) fetchReplies();
+            } catch (error) { console.error('Invalid procurement event', error); }
+        };
+        // Fallback for temporary Realtime disconnects.
+        const interval = setInterval(fetchReplies, 30000);
+        return () => { clearInterval(interval); events.close(); };
     }, [data.dispatch_id]);
 
     const handleSimulate = async (style) => {
