@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { Bot, Cpu } from 'lucide-react';
-import RequirementForm from './components/RequirementForm';
+import NewProcurementPage from './components/NewProcurementPage';
 import OptimizationDashboard from './components/OptimizationDashboard';
 import SupplierManagement from './components/SupplierManagement';
 import TransactionHistory from './components/TransactionHistory';
@@ -12,7 +12,6 @@ function App() {
   const [appState, setAppState] = useState('active');
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [selectedProcurementId, setSelectedProcurementId] = useState(null);
-  const [newProcurementOpen, setNewProcurementOpen] = useState(false);
     const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [health, setHealth] = useState({ status: 'unknown', demoMode: false });
 
@@ -31,7 +30,6 @@ function App() {
   const handleConfirm = (data) => {
     setOptimizationResult(data);
     setSelectedProcurementId(data.dispatch_id);
-    setNewProcurementOpen(false);
     setHistoryRefreshKey(key => key + 1);
     setAppState('active');
   };
@@ -137,9 +135,13 @@ function App() {
             <a href="#" onClick={(e) => {
                 e.preventDefault();
                 setAppState('active');
-            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
+            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${['active', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
+            </a>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('input');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'input' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState === 'input' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
+                Pengadaan Baru
             </a>
             <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                 <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
@@ -161,20 +163,21 @@ function App() {
       {/* MAIN CONTENT */}
       <main className="relative z-10 flex-1 flex flex-col overflow-hidden">
         
-        <header className="h-20 flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-10">
+        <header className="relative z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md md:h-20 md:px-8">
             <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-extrabold text-slate-900">
+                <h1 className="text-lg font-extrabold text-slate-900 md:text-2xl">
                     {appState === 'active' ? 'Pengadaan Aktif' :
                      appState === 'input' ? 'Pengadaan Baru' :
                      appState === 'dashboard' ? 'Dashboard Pengadaan' :
-                     appState === 'suppliers' ? 'Manajemen Supplier' : 'Dashboard'}
+                     appState === 'suppliers' ? 'Manajemen Supplier' :
+                     appState === 'history' ? 'Riwayat Transaksi' : 'Dashboard'}
                 </h1>
             </div>
             
             <div className="flex items-center gap-4">
                 <button 
                   onClick={toggleDemoMode}
-                  className="flex bg-slate-100 rounded-full p-1 border border-slate-200 relative w-[180px] shadow-inner"
+                  className="relative hidden w-[180px] rounded-full border border-slate-200 bg-slate-100 p-1 shadow-inner sm:flex"
                 >
                   <div className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full transition-all duration-300 shadow-sm ${health.demoMode ? 'translate-x-0 bg-amber-400' : 'translate-x-[100%] bg-emerald-400'}`}></div>
                   <div className={`relative z-10 flex-1 text-center py-1.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${health.demoMode ? 'text-white' : 'text-slate-500'}`}>
@@ -184,28 +187,40 @@ function App() {
                       <Bot className="h-3 w-3" /> Live
                   </div>
                 </button>
-                <div className="h-10 w-10 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-slate-600 font-bold shadow-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 font-bold text-slate-600 shadow-sm md:h-10 md:w-10">
                     AD
                 </div>
             </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8">
+        <nav className="flex flex-shrink-0 gap-2 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2 md:hidden" aria-label="Menu utama">
+          {[
+            ['active', 'Pengadaan Aktif'], ['input', 'Pengadaan Baru'],
+            ['suppliers', 'Supplier'], ['history', 'Riwayat']
+          ].map(([value, label]) => {
+            const selected = value === 'active' ? ['active', 'dashboard'].includes(appState) : appState === value;
+            return <button key={value} type="button" onClick={() => setAppState(value)} aria-current={selected ? 'page' : undefined}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${selected ? 'bg-teal-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              {label}
+            </button>;
+          })}
+        </nav>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-8">
             <div className="max-w-[1600px] mx-auto space-y-8">
                 
-                {/* Input State */}
-                {appState === 'active' && <div className={`grid items-start gap-6 ${newProcurementOpen ? '2xl:grid-cols-[minmax(0,1fr)_minmax(320px,440px)]' : ''}`}>
+                {/* Active procurement monitoring */}
+                {appState === 'active' && (
                   <ActiveProcurements
-                    onNew={() => setNewProcurementOpen(true)}
+                    onNew={() => setAppState('input')}
                     initialId={selectedProcurementId}
                     refreshKey={historyRefreshKey}
                     onOpenWorkflow={handleOpenActiveWorkflow}
                   />
-                  {newProcurementOpen && <section className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-label="Form pengadaan baru">
-                    <div className="mb-5 flex justify-end"><button type="button" onClick={() => setNewProcurementOpen(false)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">Tutup form</button></div>
-                    <RequirementForm onConfirm={handleConfirm} />
-                  </section>}
-                </div>}
+                )}
+
+                {/* New procurement entry with compact context */}
+                {appState === 'input' && <NewProcurementPage onConfirm={handleConfirm} refreshKey={historyRefreshKey} />}
 
                 {/* Dashboard State */}
                 {appState === 'dashboard' && optimizationResult && (
