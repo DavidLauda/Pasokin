@@ -7,6 +7,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use('/api/manual-confirmations', require('./routes/manual-confirmations'));
+app.post('/api/wa/webhook', require('./routes/manual-summary-webhook'));
 
 // Mount routes
 const suppliersRouter = require('./routes/suppliers');
