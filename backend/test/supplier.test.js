@@ -54,29 +54,36 @@ test('invalid identity format and MOQ above capacity are rejected', async () => 
 
 test('admin supplier detail requires backend token and keeps payout out of public detail', async () => {
   const app = require('../src/app');
+  const authService = require('../src/services/authService');
   const originalDetail = store.getSupplierDetail;
+  const originalGetUser = authService.getUser;
   const originalToken = process.env.PASOKIN_ADMIN_TOKEN;
   process.env.PASOKIN_ADMIN_TOKEN = 'test-only-admin-token';
+  authService.getUser = async token => token === 'buyer-token'
+    ? { id: 'buyer-1', app_metadata: { pasokin_role: 'buyer' } } : null;
   store.getSupplierDetail = async () => ({ id: 'sup-1', name: 'Supplier A',
     nib: '1234567890123', payout_bank: 'Bank A', transactions: [] });
   const server = app.listen(0, '127.0.0.1');
   try {
     await new Promise(resolve => server.once('listening', resolve));
     const base = `http://127.0.0.1:${server.address().port}/api/suppliers`;
-    const publicResponse = await fetch(`${base}/sup-1`);
+    const publicResponse = await fetch(`${base}/sup-1`, {
+      headers: { Authorization: 'Bearer buyer-token' }
+    });
     const publicRow = await publicResponse.json();
     assert.equal(publicRow.payout_bank, undefined);
     assert.equal(publicRow.nib, undefined);
     const denied = await fetch(`${base}/admin/sup-1`);
     assert.equal(denied.status, 401);
     const allowed = await fetch(`${base}/admin/sup-1`, {
-      headers: { 'x-pasokin-admin-token': 'test-only-admin-token' }
+      headers: { Authorization: 'Bearer buyer-token', 'x-pasokin-admin-token': 'test-only-admin-token' }
     });
     assert.equal(allowed.status, 200);
     assert.equal((await allowed.json()).payout_bank, 'Bank A');
   } finally {
     await new Promise(resolve => server.close(resolve));
     store.getSupplierDetail = originalDetail;
+    authService.getUser = originalGetUser;
     if (originalToken === undefined) delete process.env.PASOKIN_ADMIN_TOKEN;
     else process.env.PASOKIN_ADMIN_TOKEN = originalToken;
   }

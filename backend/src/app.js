@@ -7,7 +7,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use('/api/manual-confirmations', require('./routes/manual-confirmations'));
+const { requireRole } = require('./middleware/auth');
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/manual-confirmations', requireRole('buyer'), require('./routes/manual-confirmations'));
 app.post('/api/wa/webhook', require('./routes/manual-summary-webhook'));
 
 // Mount routes
@@ -21,13 +23,13 @@ const settingsRouter = require('./routes/settings');
 const procurementsRouter = require('./routes/procurements');
 
 app.use('/api/suppliers', suppliersRouter);
-app.use('/api/source', sourceRouter);
-app.use('/api/optimize', optimizeRouter);
-app.use('/api/dispatch-wa', dispatchRouter);
+app.use('/api/source', requireRole('buyer'), sourceRouter);
+app.use('/api/optimize', requireRole('buyer'), optimizeRouter);
+app.use('/api/dispatch-wa', requireRole('buyer'), dispatchRouter);
 app.use('/api/wa', waRouter);
-app.use('/api/wa-replies', waRepliesRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/procurements', procurementsRouter);
+app.use('/api/wa-replies', requireRole('buyer'), waRepliesRouter);
+app.use('/api/settings', requireRole('buyer'), settingsRouter);
+app.use('/api/procurements', requireRole('buyer'), procurementsRouter);
 
 const configService = require('./services/configService');
 

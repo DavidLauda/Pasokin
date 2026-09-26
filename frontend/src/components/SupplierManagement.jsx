@@ -100,7 +100,7 @@ export default function SupplierManagement() {
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6">
       <div><h2 className="text-xl font-extrabold">Manajemen Supplier</h2><p className="mt-1 text-sm text-slate-500">{formatNumber(suppliers.length)} supplier terdaftar</p></div>
       <div className="flex flex-wrap gap-2">
-        <a href="/daftar-supplier" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Lihat form publik</a>
+        <a href="/daftar-supplier" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Portal supplier</a>
         <button type="button" onClick={() => { setEditing(null); setFormOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white"><Plus className="h-4 w-4" /> Tambah Supplier</button>
       </div>
     </div>

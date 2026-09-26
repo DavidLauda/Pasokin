@@ -1,0 +1,435 @@
+[
+  {
+    "case_id": "optimizer_001",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 3000,
+      "B": 2000
+    },
+    "actual_allocation": {
+      "A": 3000,
+      "B": 2000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Replikasi kasus di slide pitch deck (PT Sumber Jaya, aluminium coil)"
+  },
+  {
+    "case_id": "optimizer_002",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 1000
+    },
+    "actual_allocation": {
+      "A": 1000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Satu supplier langsung cukup, tidak perlu waterfall"
+  },
+  {
+    "case_id": "optimizer_003",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 400,
+      "C": 400,
+      "B": 200
+    },
+    "actual_allocation": {
+      "A": 400,
+      "C": 400,
+      "B": 200
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Dihitung dengan asumsi normalisasi min-max: A skor tertinggi (harga termurah + reliability tertinggi), C kedua, B terakhir tapi tetap kebagian sisa 200 karena total masih kurang dari demand"
+  },
+  {
+    "case_id": "optimizer_004",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 1000,
+      "B": 1000
+    },
+    "actual_allocation": {
+      "A": 1000,
+      "B": 1000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Dihitung dengan asumsi normalisasi min-max: Si_A=0.70 (menang di cost+reliability tie), Si_B=0.60 (menang di speed saja) — A diutamakan tapi karena total kapasitas keduanya pas sama dengan demand, angka akhir sama meski urutan beda"
+  },
+  {
+    "case_id": "optimizer_005",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 500
+    },
+    "actual_allocation": {
+      "A": 500
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Tie-break diputuskan: skor identik persis -> sort JS stabil, supplier yang muncul lebih dulu di array input menang penuh (A dapat 500, B tidak kebagian)"
+  },
+  {
+    "case_id": "optimizer_006",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 3000,
+      "B": 2000
+    },
+    "actual_allocation": {
+      "A": 3000,
+      "B": 2000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Dihitung dengan asumsi normalisasi min-max: Si_A=0.70, Si_B=0.30 — A makin dominan dibanding optimizer_001, tapi angka alokasi akhir sama karena kapasitas keduanya tetap pas menutup demand"
+  },
+  {
+    "case_id": "optimizer_007",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 1000,
+      "B": 1000,
+      "C": 1000
+    },
+    "actual_allocation": {
+      "A": 1000,
+      "B": 1000,
+      "C": 1000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Semua supplier terpakai penuh, total pas demand. Ranking Si: A=0.70 > B=0.65 > C=0.60 (expect_first memverifikasi ranking meski union alokasi akhir sama)"
+  },
+  {
+    "case_id": "optimizer_008",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 500,
+      "B": 300
+    },
+    "actual_allocation": {
+      "A": 500,
+      "B": 300
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Spec baru (optimizer belum mengecek target_kirim_days menurut review): C harga termurah tapi lead_time (7) > target_kirim_days (6). Bobot cost dinaikkan (0.8) supaya kalau C TIDAK difilter dulu, C menang skor telak (Si_C=0.80 > Si_A=0.60) dan mengambil semua 800 sendirian -- beda jauh dari hasil kalau C difilter duluan karena lead_time-nya (A+B=800). expect_allocation di sini pakai asumsi C difilter (perilaku yang diinginkan), BUKAN perilaku kode saat ini -- jangan dianggap gagal kalau kode belum mengecek target_kirim_days sama sekali, itu status 'spec baru' bukan bug"
+  },
+  {
+    "case_id": "optimizer_009",
+    "type": "infeasible",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": {
+      "A": 3000
+    },
+    "actual_allocation": {
+      "A": 3000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Total qty semua supplier jauh di bawah demand — status harus partial/infeasible, bukan dipaksa complete"
+  },
+  {
+    "case_id": "optimizer_010",
+    "type": "infeasible",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": {},
+    "actual_allocation": {},
+    "allocation_checked": true,
+    "returned_null": true,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Tidak ada supplier confirmed sama sekali — hasil kosong, bukan error/crash"
+  },
+  {
+    "case_id": "optimizer_011",
+    "type": "infeasible",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": {
+      "A": 200,
+      "B": 150
+    },
+    "actual_allocation": {
+      "A": 200,
+      "B": 150
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Total 350 dari 500 diminta — partial, sisa 150 tidak terpenuhi"
+  },
+  {
+    "case_id": "optimizer_012",
+    "type": "infeasible",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": null,
+    "actual_allocation": {},
+    "allocation_checked": false,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Qty cukup tapi lead_time jauh melewati target_kirim_days — beda kasus dari optimizer_009 (qty kurang); perlu dipastikan kode membedakan dua jenis infeasible ini"
+  },
+  {
+    "case_id": "optimizer_013",
+    "type": "edge",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 500
+    },
+    "actual_allocation": {
+      "A": 500
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Regression test untuk bug asli 'a 0 weight was swapped for the default': speed weight sengaja 0. Harga sama, jadi A menang murni karena reliability lebih tinggi (0.6 vs 0.5), meski jauh lebih lambat (lead_time 10 vs 1). Kalau bug ada (weight 0 disubstitusi default), B yang lebih cepat bisa ikut menang karena speed ikut terhitung padahal seharusnya diabaikan — verifikasi manual pakai rumus asli"
+  },
+  {
+    "case_id": "optimizer_014",
+    "type": "edge",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 500
+    },
+    "actual_allocation": {
+      "A": 500
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Cuma 1 supplier tersedia, qty dan lead_time pas presisi sama dengan demand/target"
+  },
+  {
+    "case_id": "optimizer_015",
+    "type": "edge",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": null,
+    "actual_allocation": {},
+    "allocation_checked": false,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Sama seperti optimizer_014 tapi lead_time lebih dari target sehari — batas presisi feasible vs infeasible"
+  },
+  {
+    "case_id": "optimizer_016",
+    "type": "edge",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 250,
+      "B": 250
+    },
+    "actual_allocation": {
+      "A": 250,
+      "B": 250
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Dua supplier identik, total pas presisi demand — keduanya harus terpakai penuh tanpa sisa"
+  },
+  {
+    "case_id": "optimizer_017",
+    "type": "feasible",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "Z": 2000,
+      "Y": 1000,
+      "X": 0
+    },
+    "actual_allocation": {
+      "Z": 2000,
+      "Y": 1000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Skenario dasar sensitivity: 3 supplier dengan trade-off jelas (X murah-lambat-kurang reliable, Z mahal-cepat-reliable, Y di tengah). Total kapasitas 6000 jauh melebihi demand 3000, jadi pemilihan supplier benar-benar berubah tergantung bobot — bukan cuma urutan yang berubah tapi supplier mana yang ikut/tidak. Dengan bobot default, Z menang dan X tersisih sepenuhnya"
+  },
+  {
+    "case_id": "optimizer_018",
+    "type": "sensitivity",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "X": 2000,
+      "Y": 1000,
+      "Z": 0
+    },
+    "actual_allocation": {
+      "X": 2000,
+      "Y": 1000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Sensitivity FLIP: bobot cost digeser jauh lebih tinggi (0.70) dari base (0.40) — X yang tadinya tersisih total di optimizer_017 sekarang menang penuh, dan Z yang tadinya menang sekarang tersisih total. Ini trade-off yang jujur, bukan forced — supplier yang terpilih benar-benar berbeda"
+  },
+  {
+    "case_id": "optimizer_019",
+    "type": "sensitivity",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "Z": 2000,
+      "Y": 1000,
+      "X": 0
+    },
+    "actual_allocation": {
+      "Z": 2000,
+      "Y": 1000
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Sensitivity STABIL: bobot reliability digeser ke ekstrem (0.90), tapi hasil alokasi SAMA dengan base (Z tetap menang, X tetap tersisih) — kontras yang bagus dengan optimizer_018: menunjukkan bahwa yang benar-benar menentukan flip di skenario ini adalah dimensi cost, bukan reliability, meski reliability yang di-dorong ekstrem"
+  },
+  {
+    "case_id": "optimizer_020",
+    "type": "edge",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": {},
+    "actual_allocation": {},
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "qty null (kasus terpisah dari bug bobot di optimizer_013) — pastikan qty yang null/tidak valid dikeluarkan dari kandidat sebelum scoring, bukan otomatis dianggap 0 lalu tetap ikut dihitung sebagai entri valid"
+  },
+  {
+    "case_id": "optimizer_021",
+    "type": "edge",
+    "expected_feasible": true,
+    "actual_feasible": true,
+    "expected_allocation": {
+      "A": 500,
+      "B": 400
+    },
+    "actual_allocation": {
+      "A": 500,
+      "B": 400
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Kasus jebakan MOQ (H-O2). Solusi yang BENAR ada: A 500 + B 400 = 900, dua-duanya di atas MOQ masing-masing (A>=100, B>=400) -- expect_allocation={A:500,B:400}, expect_feasible=true. PENTING: kalau expected ditulis sesuai output greedy naif (A dialokasikan penuh 700 dulu baru sisa 200 gagal isi MOQ B), itu sirkular -- kunci jawaban dicontek dari bug yang mau ditemukan, dan test jadi lolos padahal sistemnya gagal. Algoritma yang benar harus mempertimbangkan MOQ B sebelum menghabiskan alokasi A, bukan alokasi greedy murni skor tertinggi dulu. Kalau di hari-H tidak sempat dibenerin, ini masuk 'temuan yang belum teratasi' di artifact, dengan mitigasi minimal shortfall dilaporkan ke buyer, bukan didiamkan"
+  },
+  {
+    "case_id": "optimizer_022",
+    "type": "edge",
+    "expected_feasible": false,
+    "actual_feasible": false,
+    "expected_allocation": {
+      "A": 750
+    },
+    "actual_allocation": {
+      "A": 750
+    },
+    "allocation_checked": true,
+    "returned_null": false,
+    "violations": [],
+    "feasible_ok": true,
+    "allocation_ok": true,
+    "pass": true,
+    "note": "Kasus budget mengikat: A sanggup penuhi 1000 unit qty-wise, tapi biaya beli 1000 x Rp200.000 = Rp200jt melebihi max_budget Rp150jt. Alokasi harus dibatasi budget (150jt / 200rb = 750 unit), sisa 250 unit tidak terpenuhi karena batas anggaran, bukan batas kapasitas supplier. Field max_budget belum pernah dites di kasus lain -- perlu dicek dulu apakah optimizeAllocation menerima parameter budget sama sekali di kode saat ini"
+  }
+]

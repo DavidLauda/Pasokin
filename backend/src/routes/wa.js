@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const whatsappService = require('../services/whatsappService');
+const { requireRole } = require('../middleware/auth');
 
-router.get('/status', async (req, res) => {
+router.get('/status', requireRole('buyer'), async (req, res) => {
     const status = await whatsappService.getStatus();
     res.json(status);
 });

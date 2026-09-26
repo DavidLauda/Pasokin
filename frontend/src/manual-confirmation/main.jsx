@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import client from '../api/client';
+import { clearSession, getSession } from '../api/client';
+import AuthPage from '../components/AuthPage';
 import '../index.css';
 
 function errorText(error) {
   return error.response?.data?.error || error.message || 'Terjadi kesalahan';
 }
 
-function ManualConfirmationPage() {
+function ManualConfirmationPage({ onLogout }) {
   const [rows, setRows] = useState([]);
   const [selectedId, setSelectedId] = useState(new URLSearchParams(window.location.search).get('procurement_id'));
   const [selected, setSelected] = useState(null);
@@ -85,7 +87,7 @@ function ManualConfirmationPage() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div><p className="text-sm font-bold text-amber-600">Pasokin</p><h1 className="text-3xl font-extrabold">Konfirmasi Harga Manual</h1></div>
-          <a href="/" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Kembali ke dashboard</a>
+          <div className="flex gap-2"><a href="/" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Kembali ke dashboard</a><button type="button" onClick={onLogout} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Keluar</button></div>
         </header>
         {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
         {notice && <p role="status" className="mb-4 rounded-xl bg-emerald-50 p-4 text-emerald-700">{notice}</p>}
@@ -147,4 +149,30 @@ function ManualConfirmationPage() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<ManualConfirmationPage />);
+function ManualConfirmationGate() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(Boolean(getSession()));
+  useEffect(() => {
+    if (!getSession()) return;
+    client.get('/auth/me').then(({ data }) => setUser(data.user))
+      .catch(() => clearSession())
+      .finally(() => setLoading(false));
+  }, []);
+  useEffect(() => {
+    const sync = () => { if (!getSession()) setUser(null); };
+    window.addEventListener('pasokin:auth-changed', sync);
+    window.addEventListener('storage', sync);
+    return () => { window.removeEventListener('pasokin:auth-changed', sync); window.removeEventListener('storage', sync); };
+  }, []);
+  const logout = async () => {
+    try { await client.post('/auth/logout'); }
+    catch { /* Clear the browser session even if the server is unavailable. */ }
+    finally { clearSession(); setUser(null); }
+  };
+  if (loading) return <p className="p-10 text-center text-sm text-slate-500">Memeriksa sesi…</p>;
+  if (!user) return <AuthPage onAuthenticated={signedIn => { setUser(signedIn); }} />;
+  if (user.role !== 'buyer') return <main className="p-10 text-center"><p>Halaman ini hanya untuk buyer.</p><button className="mt-4 rounded-xl bg-teal-700 px-4 py-2 text-white" onClick={logout}>Keluar</button></main>;
+  return <ManualConfirmationPage onLogout={logout} />;
+}
+
+createRoot(document.getElementById('root')).render(<ManualConfirmationGate />);
