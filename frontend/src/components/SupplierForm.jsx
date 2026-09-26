@@ -20,7 +20,7 @@ function initialData(supplier) {
   };
 }
 
-export default function SupplierForm({ supplier = null, onSaved, onCancel }) {
+export default function SupplierForm({ supplier = null, onSaved, onCancel, selfService = false }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(() => initialData(supplier));
   const [extraCategory, setExtraCategory] = useState('');
@@ -95,9 +95,11 @@ export default function SupplierForm({ supplier = null, onSaved, onCancel }) {
           if (!payload[field]) delete payload[field];
         }
       }
-      const { data } = supplier
-        ? await client.put(`/suppliers/${supplier.id}`, payload)
-        : await client.post('/suppliers/register', payload);
+      const { data } = selfService
+        ? await client[supplier ? 'put' : 'post']('/suppliers/me', payload)
+        : supplier
+          ? await client.put(`/suppliers/${supplier.id}`, payload)
+          : await client.post('/suppliers/register', payload);
       onSaved(data);
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Gagal menyimpan supplier. Coba lagi.');

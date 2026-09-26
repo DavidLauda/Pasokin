@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import { Bot, Cpu } from 'lucide-react';
+import { Bot, Cpu, LogOut } from 'lucide-react';
 import NewProcurementPage from './components/NewProcurementPage';
 import OptimizationDashboard from './components/OptimizationDashboard';
 import SupplierManagement from './components/SupplierManagement';
@@ -9,7 +9,7 @@ import ActiveProcurements from './components/ActiveProcurements';
 import ProcurementDetail from './components/ProcurementDetail';
 import client from './api/client';
 
-function App() {
+function App({ user, onLogout }) {
   const [appState, setAppState] = useState('input');
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [selectedProcurementId, setSelectedProcurementId] = useState(null);
@@ -23,9 +23,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const events = new EventSource(`${client.defaults.baseURL}/procurements/events`);
-    events.onmessage = () => setHistoryRefreshKey(key => key + 1);
-    return () => events.close();
+    // Refresh while the buyer is signed in. Native EventSource cannot attach
+    // the Authorization header required by the procurement stream.
+    const timer = setInterval(() => setHistoryRefreshKey(key => key + 1), 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleConfirm = (data) => {
@@ -194,9 +195,10 @@ function App() {
                       <Bot className="h-3 w-3" /> Live
                   </div>
                 </button>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 font-bold text-slate-600 shadow-sm md:h-10 md:w-10">
-                    AD
+                <div title={user.email} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-200 font-bold text-slate-600 shadow-sm md:h-10 md:w-10">
+                    {user.name?.slice(0, 2).toUpperCase() || 'BY'}
                 </div>
+                <button type="button" onClick={onLogout} title="Keluar" className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Keluar</span></button>
             </div>
         </header>
 

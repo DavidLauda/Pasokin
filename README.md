@@ -72,13 +72,13 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
    Untuk presentasi tanpa koneksi WhatsApp, gunakan `DEMO_MODE=true`. Mode ini hanya mensimulasikan pengiriman dan balasan WhatsApp; triase balasan tetap memakai Gemma 2B.
 
-   `SUPABASE_SERVICE_ROLE_KEY` hanya boleh ada di environment backend atau file `.env` lokal yang diabaikan Git. Jangan memasukkannya ke Vite, frontend, atau commit. Browser menerima pembaruan status melalui endpoint backend `/api/procurements/events`, sehingga anon key tidak diperlukan oleh frontend. Seluruh tabel memakai RLS dan akses anon dicabut.
+   `SUPABASE_SERVICE_ROLE_KEY` hanya boleh ada di environment backend atau file `.env` lokal yang diabaikan Git. Jangan memasukkannya ke Vite, frontend, atau commit. Login/register memakai Supabase Auth melalui backend; anon key tidak diperlukan oleh frontend. Seluruh tabel memakai RLS dan akses anon dicabut.
 
-   Form supplier publik tersedia di `/daftar-supplier`; Manajemen Supplier tetap berada di dashboard. NIB/NPWP diperiksa formatnya saja (NIB 13 digit, NPWP 15 atau 16 digit); badge Verified berarti self-declared, belum terhubung ke OSS. Skor reliability dimulai dari 0,5 dan hanya berubah lewat outcome transaksi. Nomor identitas serta rekening tidak dikirim kembali oleh endpoint publik supplier.
+   Halaman awal adalah login/register; pilih **Buyer** atau **Supplier** saat daftar maupun saat masuk. Tidak ada email atau kata sandi bawaan: buat akun sendiri melalui tab Daftar, lalu gunakan kredensial itu saat masuk dengan peran yang sama. Buyer yang masuk melihat dashboard pengadaan; supplier yang masuk melihat portal untuk melengkapi atau mengubah profil usahanya sendiri. `/daftar-supplier` mengarahkan calon mitra ke alur akun supplier. Akun supplier baru membuat profil baru; profil supplier lama hasil seed belum memiliki akun dan tidak otomatis ditautkan ke email. NIB/NPWP diperiksa formatnya saja (NIB 13 digit, NPWP 15 atau 16 digit); badge Verified berarti self-declared, belum terhubung ke OSS. Skor reliability dimulai dari 0,5 dan hanya berubah lewat outcome transaksi.
 
    Geocoding alamat memakai Google Geocoding API jika `GOOGLE_GEOCODING_API_KEY` disetel **hanya di backend**. Tanpa key atau jika pencarian gagal, supplier tetap dapat memilih pin pada peta dan mengisi koordinat manual. Peta memakai tile OpenStreetMap dengan atribusi. Lihat [dokumentasi Google Geocoding](https://developers.google.com/maps/documentation/geocoding/guides-v3/requests-geocoding) untuk menyiapkan key server.
 
-   Detail legal dan rekening supplier hanya dibuka lewat endpoint admin dengan `PASOKIN_ADMIN_TOKEN` dari environment backend. Masukkan token tersebut di panel detail Manajemen Supplier; token tidak disimpan di browser. Tanpa token, endpoint publik hanya menampilkan data operasional. API dashboard lainnya masih memerlukan autentikasi/otorisasi menyeluruh sebelum produksi.
+   Detail legal dan rekening supplier hanya dibuka oleh supplier pemilik profilnya atau lewat endpoint buyer dengan `PASOKIN_ADMIN_TOKEN` dari environment backend. Masukkan token tersebut di panel detail Manajemen Supplier; token tidak disimpan di browser. Endpoint dashboard memeriksa sesi buyer/supplier di backend. Untuk produksi, tambahkan verifikasi email, pembatasan pendaftaran buyer, dan pemisahan data antar organisasi buyer; saat ini semua akun buyer berbagi workspace pengadaan yang sama.
 
 3. **Siapkan database:**
    Jalankan [`backend/supabase/schema.sql`](backend/supabase/schema.sql) di Supabase SQL Editor. Lalu impor data lama satu kali dari folder `backend`:
@@ -97,11 +97,11 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    - Backend API berjalan di: `http://localhost:4000`
    - Health check: `http://localhost:4000/api/health`
 
-   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dalam kedua mode, triase supplier menggunakan service Gemma. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp. Atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend yang dapat diakses Fonnte, bukan `localhost`.
+   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dalam kedua mode, triase supplier menggunakan service Gemma. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp. Pada Fonnte > Device > Edit, isi **Webhook URL** dengan `https://pasokin.vercel.app/api/wa/webhook` (atau domain publik backend yang sedang dipakai) dan aktifkan **Auto Read**. URL harus dapat menerima POST dari internet; `localhost` tidak bisa dipakai. Setelah pengaturan aktif, minta supplier mengirim ulang balasan yang sebelumnya belum masuk. Bila satu nomor supplier memiliki beberapa pengadaan aktif, balasan harus menyertakan kode `PSK-XXXX` agar cocok ke pengadaan yang benar.
 
-   Backend membaca dan menulis supplier, procurement, alokasi, balasan, riwayat RFQ, dan pengaturan dari Supabase. Jalankan `cd backend && npm test` untuk uji otomatis. Untuk produksi, tambahkan autentikasi dan otorisasi pengguna di backend sebelum membuka API ke publik; RLS saja tidak membatasi pemanggil endpoint Express yang belum memiliki login.
+   Backend membaca dan menulis supplier, procurement, alokasi, balasan, riwayat RFQ, dan pengaturan dari Supabase. Jalankan `cd backend && npm test` untuk uji otomatis.
 
-   Saat backend berjalan dengan `DEMO_MODE=true`, jalankan `node test/supabase-smoke.js` dan `node test/realtime-smoke.js` dari folder `backend` untuk menguji alur database dan stream status. Kedua skrip menghapus data uji yang mereka buat. Stream backend memakai Supabase Realtime dan pemeriksaan database berkala sebagai cadangan saat WebSocket tidak tersedia; koneksi stream panjang perlu hosting backend yang mendukung SSE.
+   Status dashboard buyer diperbarui berkala selama sesi login. Endpoint stream Supabase Realtime tetap tersedia bagi klien yang mengirim token bearer; native `EventSource` browser tidak dipakai karena tidak dapat mengirim header Authorization. Skrip smoke database di `backend/test` memerlukan penyesuaian token akun buyer sebelum dipakai terhadap endpoint yang terlindungi.
 
 ### Proses Loading Model Triage
 
