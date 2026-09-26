@@ -19,9 +19,36 @@ router.get('/', async (req, res, next) => {
     res.json(procurements.filter(row => row.status !== 'completed').map(row => ({
       id: row.id, reference_code: row.reference_code,
       material_summary: row.material_summary, status: row.status,
-      supplier_count: counts.get(row.id)?.size || 0,
+      supplier_count: counts.get(row.id)?.size || (row.negotiated_supplier_id ? 1 : 0),
       created_at: row.created_at, updated_at: row.updated_at
     })));
+  } catch (error) { next(error); }
+});
+
+router.get('/history', async (req, res, next) => {
+  try {
+    const [procurements, logs] = await Promise.all([
+      procurementsStore.list(), dispatchLog.getAllLogs()
+    ]);
+    const logsByProcurement = new Map();
+    for (const log of logs) {
+      const group = logsByProcurement.get(log.dispatch_id) || [];
+      group.push(log);
+      logsByProcurement.set(log.dispatch_id, group);
+    }
+    res.json(procurements.filter(row => row.status === 'completed').map(row => {
+      const suppliers = logsByProcurement.get(row.id) || [];
+      return {
+        id: row.id, dispatch_id: row.id, reference_code: row.reference_code,
+        material_summary: row.material_summary,
+        parsed_material_summary: row.parsed_material_summary,
+        manual_price: row.manual_price, manual_quantity: row.manual_quantity,
+        manual_unit: row.manual_unit, status: row.status,
+        supplier_count: suppliers.length || (row.negotiated_supplier_id ? 1 : 0),
+        created_at: row.created_at, updated_at: row.updated_at,
+        suppliers, requirement: row.parsed_material_summary || {}, po_sent: true
+      };
+    }));
   } catch (error) { next(error); }
 });
 

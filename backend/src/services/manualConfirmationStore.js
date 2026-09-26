@@ -22,7 +22,8 @@ function listCandidates() {
 }
 
 function getSupplier(id) {
-  return run(db.getClient().from('suppliers').select('id,name,phone').eq('id', id).maybeSingle());
+  return run(db.getClient().from('suppliers').select('supplier_uuid,name,phone').eq('supplier_uuid', id).maybeSingle())
+    .then(row => row && { id: row.supplier_uuid, name: row.name, phone: row.phone });
 }
 
 function getMessages(procurementId) {

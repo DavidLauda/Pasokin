@@ -1,170 +1,86 @@
-import { useState, useEffect } from 'react';
-import { History, Package, Calendar, Search, ArrowRight, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { History, Search } from 'lucide-react';
 import client from '../api/client';
 
+const formatDate = value => value
+  ? new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+const formatMoney = value => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+
 export default function TransactionHistory({ onOpenDashboard, refreshKey }) {
-    const [history, setHistory] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
+  const [detail, setDetail] = useState(null);
 
-    useEffect(() => {
-        client.get('/dispatch-wa/history')
-            .then(res => {
-                // Kelompokkan log berdasarkan dispatch_id agar 1 transaksi = 1 baris
-                const grouped = res.data.reduce((acc, log) => {
-                    if (!acc[log.dispatch_id]) {
-                        acc[log.dispatch_id] = {
-                            dispatch_id: log.dispatch_id,
-                            dispatched_at: log.dispatched_at,
-                            po_sent: log.po_sent === true,
-                            requirement: log.requirement_snapshot,
-                            suppliers: [],
-                        };
-                    }
-                    acc[log.dispatch_id].po_sent = acc[log.dispatch_id].po_sent || log.po_sent === true;
-                    acc[log.dispatch_id].suppliers.push(log);
-                    return acc;
-                }, {});
-                
-                // Urutkan dari terbaru
-                const sorted = Object.values(grouped)
-                    .filter(transaction => transaction.po_sent)
-                    .sort((a, b) => new Date(b.dispatched_at) - new Date(a.dispatched_at));
-                setHistory(sorted);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setLoading(false);
-            });
-    }, [refreshKey]);
+  useEffect(() => {
+    let live = true;
+    client.get('/procurements/history').then(({ data }) => {
+      if (!live) return;
+      setHistory(data.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)));
+      setError('');
+    }).catch(() => { if (live) setError('Riwayat belum bisa dimuat.'); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [refreshKey]);
 
-    const formatIDR = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
-    const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  useEffect(() => {
+    if (!selectedId) { setDetail(null); return; }
+    let live = true;
+    client.get(`/procurements/${encodeURIComponent(selectedId)}`)
+      .then(({ data }) => { if (live) setDetail(data); })
+      .catch(() => { if (live) setError('Detail riwayat belum bisa dimuat.'); });
+    return () => { live = false; };
+  }, [selectedId, refreshKey]);
 
-    const filteredHistory = history.filter(h => 
-        h.dispatch_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        h.requirement.materialName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        h.suppliers.some(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+  const filtered = history.filter(row => {
+    const query = search.toLocaleLowerCase('id-ID');
+    return [row.reference_code, row.material_summary, row.id,
+      ...(row.suppliers || []).map(supplier => supplier.name)].some(value =>
+      String(value || '').toLocaleLowerCase('id-ID').includes(query));
+  });
+  const selected = history.find(row => row.id === selectedId);
 
-    return (
-        <div className="w-full max-w-6xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div>
-                    <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                        <History className="h-6 w-6 text-amber-500" /> Riwayat Transaksi
-                    </h2>
-                    <p className="text-slate-500 text-sm mt-1 font-medium">Lacak semua RFQ dan Pesanan Pembelian yang telah dikirim.</p>
-                </div>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Cari ID, material, atau supplier..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-sm w-full sm:w-64 transition-all"
-                    />
-                </div>
-            </div>
+  return <div className="mx-auto w-full max-w-6xl space-y-6">
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6">
+      <div><h2 className="flex items-center gap-2 text-xl font-bold text-slate-900"><History className="h-5 w-5 text-teal-700" /> Riwayat Transaksi</h2>
+        <p className="mt-1 text-sm text-slate-500">Pengadaan yang sudah selesai tersimpan di sini.</p></div>
+      <label className="relative"><span className="sr-only">Cari riwayat</span><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Cari kode, material, supplier" className="rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-teal-700" /></label>
+    </div>
 
-            {loading ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-10 flex justify-center shadow-sm">
-                    <div className="animate-pulse flex flex-col items-center gap-3">
-                        <div className="h-8 w-8 bg-slate-200 rounded-full"></div>
-                        <div className="h-4 w-32 bg-slate-200 rounded"></div>
-                    </div>
-                </div>
-            ) : filteredHistory.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-16 flex flex-col items-center justify-center shadow-sm text-center">
-                    <div className="bg-slate-50 p-4 rounded-full mb-4">
-                        <History className="h-8 w-8 text-slate-300" />
-                    </div>
-                    <h3 className="text-slate-700 font-bold mb-1">Belum ada transaksi</h3>
-                    <p className="text-slate-500 text-sm">Riwayat pengadaan dan RFQ Anda akan muncul di sini.</p>
-                </div>
-            ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">ID Transaksi / Waktu</th>
-                                    <th className="px-6 py-4">Kebutuhan Utama</th>
-                                    <th className="px-6 py-4">Supplier Dikontak</th>
-                                    <th className="px-6 py-4">Total Nilai (Estimasi)</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredHistory.map((h) => {
-                                    const totalCost = h.suppliers.reduce((sum, supplier) => (
-                                        sum + ((supplier.allocation_snapshot?.allocated_qty ?? supplier.allocation_snapshot?.qty) * supplier.allocation_snapshot?.price || 0)
-                                    ), 0);
-                                    const sentCount = h.suppliers.filter(supplier => supplier.status === 'sent').length;
-
-                                    return (
-                                        <tr
-                                            key={h.dispatch_id}
-                                            onClick={() => onOpenDashboard(h)}
-                                            className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                                        >
-                                            <td className="px-6 py-4">
-                                                <div className="font-mono text-xs font-bold text-slate-900 mb-1">#{h.dispatch_id.substring(0, 8)}</div>
-                                                <div className="text-xs text-slate-500 flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" /> {formatDate(h.dispatched_at)}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                                    <Package className="h-4 w-4 text-slate-400" /> {h.requirement.materialName}
-                                                </div>
-                                                <div className="text-xs text-slate-500 mt-1">
-                                                    {h.requirement.quantity} {h.requirement.unit} • Maks {formatIDR(h.requirement.maxBudget)}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex -space-x-2">
-                                                    {h.suppliers.slice(0, 3).map((supplier, index) => (
-                                                        <div key={index} className="h-8 w-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-sm" title={supplier.name}>
-                                                            {supplier.name?.substring(0, 2).toUpperCase()}
-                                                        </div>
-                                                    ))}
-                                                    {h.suppliers.length > 3 && (
-                                                        <div className="h-8 w-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm">
-                                                            +{h.suppliers.length - 3}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 font-bold text-slate-700">{formatIDR(totalCost)}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${sentCount === h.suppliers.length ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                                                    {h.po_sent ? 'Terkonfirmasi' : `${sentCount}/${h.suppliers.length} terkirim`}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        onOpenDashboard(h);
-                                                    }}
-                                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
-                                                >
-                                                    Detail <ArrowRight className="h-3.5 w-3.5" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+    {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</p>}
+    {loading ? <p className="text-sm text-slate-500">Memuat riwayat…</p> : filtered.length === 0 ?
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">{search ? 'Tidak ada transaksi yang cocok.' : 'Belum ada pengadaan yang selesai.'}</div> :
+      <div className="grid gap-5 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)]">
+        <div className="space-y-3" aria-label="Daftar pengadaan selesai">
+          {filtered.map(row => {
+            const total = row.manual_price != null && row.manual_quantity != null
+              ? Number(row.manual_price) * Number(row.manual_quantity)
+              : (row.suppliers || []).reduce((sum, supplier) => sum + Number(supplier.allocation_snapshot?.allocated_qty ?? supplier.allocation_snapshot?.qty ?? 0) * Number(supplier.allocation_snapshot?.price || 0), 0);
+            return <button key={row.id} type="button" onClick={() => setSelectedId(row.id)} className={`w-full rounded-xl border bg-white p-5 text-left ${selectedId === row.id ? 'border-teal-600 ring-1 ring-teal-600' : 'border-slate-200 hover:border-slate-400'}`}>
+              <span className="text-xs font-semibold text-teal-700">{row.reference_code}</span>
+              <strong className="mt-1 block text-base tabular-nums text-slate-900">{row.material_summary || row.parsed_material_summary?.materialName || 'Material'}</strong>
+              <span className="mt-2 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Selesai</span>
+              <span className="mt-3 flex justify-between gap-2 text-xs text-slate-500"><span className="tabular-nums">{row.supplier_count} supplier</span><span>{formatDate(row.updated_at)}</span></span>
+              <span className="mt-2 block text-sm font-semibold tabular-nums text-slate-700">{formatMoney(total)}</span>
+            </button>;
+          })}
         </div>
-    );
+        <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Detail riwayat">
+          {!selectedId ? <p className="text-sm text-slate-500">Pilih pengadaan untuk melihat detailnya.</p> : !detail || detail.id !== selectedId ? <p className="text-sm text-slate-500">Memuat detail…</p> : <>
+            <p className="text-xs font-semibold text-teal-700">{detail.reference_code}</p>
+            <h3 className="mt-1 text-xl font-bold tabular-nums">{detail.material_summary}</h3>
+            <p className="mt-1 text-xs text-slate-500">Selesai · diperbarui {formatDate(detail.updated_at)}</p>
+            {detail.manual_price != null && <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm tabular-nums">Harga final: {formatMoney(detail.manual_price)} per {detail.manual_unit} × {Number(detail.manual_quantity).toLocaleString('id-ID')} {detail.manual_unit}</p>}
+            <h4 className="mt-6 font-semibold">Alokasi supplier</h4>
+            {detail.allocations?.length ? <ul className="mt-2 space-y-2">{detail.allocations.map(allocation => <li key={allocation.id} className="flex justify-between gap-3 rounded-lg border border-slate-200 p-3 text-sm"><span>{detail.dispatched_suppliers?.find(supplier => supplier.supplier_id === allocation.supplier_id)?.name || allocation.supplier_id}</span><span className="tabular-nums">{Number(allocation.quantity).toLocaleString('id-ID')} · {formatMoney(allocation.total_cost)}</span></li>)}</ul> : <p className="mt-2 text-sm text-slate-500">Tidak ada alokasi tersimpan.</p>}
+            <h4 className="mt-6 font-semibold">Pesan pengadaan ini</h4>
+            {detail.messages?.length ? <div className="mt-2 space-y-2">{detail.messages.map(message => <div key={message.id} className="rounded-lg border border-slate-200 p-3 text-sm"><p className="mb-1 text-xs font-semibold text-slate-500">{message.supplier_name} · {message.direction === 'inbound' ? 'Balasan' : 'Terkirim'} · {formatDate(message.created_at)}</p><p className="whitespace-pre-wrap break-words">{message.raw_text}</p></div>)}</div> : <p className="mt-2 text-sm text-slate-500">Belum ada pesan tersimpan.</p>}
+            {selected?.suppliers?.length > 0 && <button onClick={() => onOpenDashboard(selected)} className="mt-6 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white">Buka tampilan alokasi lama</button>}
+          </>}
+        </section>
+      </div>}
+  </div>;
 }

@@ -12,6 +12,7 @@ function App() {
   const [appState, setAppState] = useState('active');
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [selectedProcurementId, setSelectedProcurementId] = useState(null);
+  const [newProcurementOpen, setNewProcurementOpen] = useState(false);
     const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [health, setHealth] = useState({ status: 'unknown', demoMode: false });
 
@@ -30,6 +31,7 @@ function App() {
   const handleConfirm = (data) => {
     setOptimizationResult(data);
     setSelectedProcurementId(data.dispatch_id);
+    setNewProcurementOpen(false);
     setHistoryRefreshKey(key => key + 1);
     setAppState('active');
   };
@@ -111,19 +113,19 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900 selection:bg-amber-200">
+    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900 selection:bg-teal-200">
       <Toaster position="bottom-right" toastOptions={{ style: { borderRadius: '1rem', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', color: '#1e293b', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' } }} />
 
       {/* Abstract Glow Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-60 z-0">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-amber-200 blur-[120px]"></div>
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-slate-200 blur-[120px]"></div>
           <div className="absolute top-[40%] right-[10%] w-[40%] h-[50%] rounded-full bg-slate-300 blur-[120px]"></div>
       </div>
 
       {/* LEFT SIDEBAR */}
       <aside className="relative z-10 w-64 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col hidden md:flex shadow-sm">
         <div className="h-20 flex items-center px-6 border-b border-slate-100">
-            <div className="bg-amber-400 p-2 rounded-xl shadow-sm mr-3">
+            <div className="bg-teal-700 p-2 rounded-xl shadow-sm mr-3">
                 <Bot className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-extrabold text-slate-900 tracking-tight">Pasokin</span>
@@ -135,23 +137,23 @@ function App() {
             <a href="#" onClick={(e) => {
                 e.preventDefault();
                 setAppState('active');
-            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+            }} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${['active', 'input', 'dashboard'].includes(appState) ? 'bg-teal-700' : 'bg-transparent'}`}></div>
                 Pengadaan Aktif
             </a>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('suppliers');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'suppliers' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState === 'suppliers' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
                 Manajemen Supplier
             </a>
-            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('history');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'history' ? 'bg-amber-50 text-amber-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-                <div className={`w-1.5 h-4 rounded-full ${appState === 'history' ? 'bg-amber-500' : 'bg-transparent'}`}></div>
+            <a href="#" onClick={(e) => {e.preventDefault(); setAppState('history');}} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold ${appState === 'history' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                <div className={`w-1.5 h-4 rounded-full ${appState === 'history' ? 'bg-teal-700' : 'bg-transparent'}`}></div>
                 Riwayat Transaksi
             </a>
 
         </div>
 
         <div className="p-4 mb-4 mx-4 rounded-2xl bg-slate-50 border border-slate-200">
-            <h4 className="text-slate-800 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Cpu className="h-3 w-3 text-amber-500"/> Pembaruan AI</h4>
+            <h4 className="text-slate-800 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Cpu className="h-3 w-3 text-slate-500"/> Pembaruan AI</h4>
             <p className="text-slate-500 text-xs leading-relaxed">Model negosiasi v2.1 sekarang aktif. Evaluasi harga 30% lebih akurat.</p>
         </div>
       </aside>
@@ -192,17 +194,18 @@ function App() {
             <div className="max-w-[1600px] mx-auto space-y-8">
                 
                 {/* Input State */}
-                {appState === 'active' && <ActiveProcurements
-                    onNew={() => setAppState('input')}
+                {appState === 'active' && <div className={`grid items-start gap-6 ${newProcurementOpen ? '2xl:grid-cols-[minmax(0,1fr)_minmax(320px,440px)]' : ''}`}>
+                  <ActiveProcurements
+                    onNew={() => setNewProcurementOpen(true)}
                     initialId={selectedProcurementId}
                     refreshKey={historyRefreshKey}
                     onOpenWorkflow={handleOpenActiveWorkflow}
-                />}
-                {appState === 'input' && (
-                    <div className="flex justify-center pt-8">
-                        <RequirementForm onConfirm={handleConfirm} />
-                    </div>
-                )}
+                  />
+                  {newProcurementOpen && <section className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-5" aria-label="Form pengadaan baru">
+                    <div className="mb-5 flex justify-end"><button type="button" onClick={() => setNewProcurementOpen(false)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700">Tutup form</button></div>
+                    <RequirementForm onConfirm={handleConfirm} />
+                  </section>}
+                </div>}
 
                 {/* Dashboard State */}
                 {appState === 'dashboard' && optimizationResult && (
@@ -213,7 +216,7 @@ function App() {
                             }} 
                             className="px-5 py-2 text-sm font-bold bg-slate-100 border border-slate-200 rounded-xl shadow-sm text-slate-700 hover:bg-slate-200 hover:shadow transition-all"
                         >
-                            &larr; {optimizationResult.isHistorical ? 'Kembali ke Riwayat' : 'Pengadaan Baru'}
+                            &larr; {optimizationResult.isHistorical ? 'Kembali ke Riwayat' : 'Pengadaan Aktif'}
                         </button>
                         <OptimizationDashboard 
                             data={optimizationResult}
