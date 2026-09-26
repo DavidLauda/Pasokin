@@ -140,13 +140,25 @@ ID_MONTHS = {
     "juli": 7, "agustus": 8, "september": 9, "oktober": 10, "november": 11, "desember": 12,
 }
 
+# Cycle 3 fix #1: abbreviasi bulan ("okt", "nov", dst.) -- tanpa ini,
+# "kirim 20 Okt" tidak match sama sekali dan lead_time_days jatuh ke None,
+# yang bikin guardrail salah paham sebagai "tidak ada tanggal kirim" (triage_016).
+ID_MONTH_ABBR = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7,
+    "agu": 8, "ags": 8, "sep": 9, "okt": 10, "nov": 11, "des": 12,
+}
+ID_MONTHS_LOOKUP = {**ID_MONTHS, **ID_MONTH_ABBR}
+# Diurutkan terpanjang dulu supaya "september" dicoba sebelum "sep" -- kalau
+# dibalik, "sep" bisa nyangkut duluan di tengah kata "september" dan salah parse.
+_MONTH_PATTERN = "|".join(sorted(ID_MONTHS_LOOKUP.keys(), key=len, reverse=True))
+
 ID_DAYNAMES = {
     "senin": 0, "selasa": 1, "rabu": 2, "kamis": 3, "jumat": 4, "sabtu": 5, "minggu": 6,
 }
 
-# Cycle 2: aturan tambahan T4/T5 yang membaca teks balasan mentah langsung
-# (bukan hasil ekstraksi model) -- lihat cycle.md Cycle 2c untuk analisis
-# kenapa versi sebelumnya (baca ai_extracted) tidak efektif.
+# Cycle 2/3: aturan tambahan T4/T5 yang membaca teks balasan mentah langsung
+# (bukan hasil ekstraksi model) -- lihat cycle.md Cycle 2c/3c untuk analisis
+# kenapa versi yang baca ai_extracted tidak efektif.
 PAYMENT_TERM_PATTERN = re.compile(r"\btempo\b|\bDP\b|\bdown payment\b|\bcicil", re.IGNORECASE)
 HEDGING_PATTERN = re.compile(r"insyaallah|kayaknya|mungkin|semoga", re.IGNORECASE)
 
@@ -215,10 +227,14 @@ def _extract_reply_text(text_input: str) -> str:
 
 def _resolve_lead_time_from_reply(reply_text: str, dispatched_at: datetime):
     """Hitung lead_time_days SECARA DETERMINISTIK dari teks balasan mentah,
-    dipakai buat MENIMPA hasil ekstraksi model. Cycle 2 nunjukkin model cuma
-    62.5% akurat di field ini -- sering bener nyebut tanggal di ai_summary
-    tapi keliru menghitung offsetnya. Return None kalau tidak ada penanda
-    jadwal kirim sama sekali di balasan (bukan berarti 0)."""
+    dipakai buat MENIMPA hasil ekstraksi model. Return None kalau tidak ada
+    penanda jadwal kirim sama sekali di balasan (bukan berarti 0).
+
+    Cycle 3 fix #2: idiom "minggu ini"/"minggu depan" dicek SEBELUM day-name
+    loop -- kalau dibalik, kata "minggu" di idiom itu ketangkep duluan sebagai
+    nama hari (Minggu/Sunday) dan menghasilkan angka yang salah (lihat
+    triage_022 di cycle.md Cycle 3c).
+    """
     text = reply_text.lower()
     anchor = dispatched_at
 
@@ -229,9 +245,10 @@ def _resolve_lead_time_from_reply(reply_text: str, dispatched_at: datetime):
     if re.search(r"\bhari ini\b|\bhr ini\b", text):
         return 0
 
-    m = re.search(rf"(?:tanggal|tgl\.?)?\s*(\d{{1,2}})\s*({'|'.join(ID_MONTHS.keys())})", text)
+    # Cycle 3 fix #1: pola bulan sekarang termasuk abbreviasi (okt, nov, des, ...)
+    m = re.search(rf"(?:tanggal|tgl\.?)?\s*(\d{{1,2}})\s*({_MONTH_PATTERN})\b", text)
     if m:
-        day, month, year = int(m.group(1)), ID_MONTHS[m.group(2)], anchor.year
+        day, month, year = int(m.group(1)), ID_MONTHS_LOOKUP[m.group(2)], anchor.year
         try:
             target = datetime(year, month, day)
         except ValueError:
@@ -260,6 +277,12 @@ def _resolve_lead_time_from_reply(reply_text: str, dispatched_at: datetime):
                 return None
         return (target - anchor).days
 
+    # Cycle 3 fix #2: idiom minggu duluan, sebelum day-name loop di bawah
+    if re.search(r"minggu ini", text):
+        return (6 - anchor.weekday()) % 7
+    if re.search(r"minggu depan", text):
+        return 7
+
     for name, weekday in ID_DAYNAMES.items():
         if re.search(rf"\b{name}\b", text):
             days_ahead = (weekday - anchor.weekday()) % 7
@@ -268,11 +291,6 @@ def _resolve_lead_time_from_reply(reply_text: str, dispatched_at: datetime):
             if re.search(rf"\b{name}\s+depan\b", text):
                 days_ahead += 7
             return days_ahead
-
-    if re.search(r"minggu ini", text):
-        return (6 - anchor.weekday()) % 7
-    if re.search(r"minggu depan", text):
-        return 7
 
     m = re.search(r"(\d+)\s*hari\s*lagi", text)
     if m:
@@ -286,37 +304,61 @@ def _reply_has_any_number(reply_text: str) -> bool:
 
 
 def _extract_reply_price(reply_text: str):
-    """Ekstrak harga langsung dari teks balasan, independen dari ai_extracted.price
-    (yang di Cycle 2 kadang cuma nyalin harga RFQ, lihat triage_040/044)."""
+    """Ekstrak harga langsung dari teks balasan, independen dari ai_extracted.price.
+
+    Cycle 3 fix #3 & #4: ambil kemunculan TERAKHIR per pola (bukan pertama)
+    supaya koreksi diri supplier ("70rb, eh maksud saya 78rb") kebaca benar
+    (triage_042); dan kalau harga disebut sebagai TOTAL untuk qty tertentu
+    ("total 2,7jt utk 30 pcs"), dibagi dulu jadi per-unit sebelum dibandingkan
+    ke harga RFQ yang selalu per-unit (triage_043).
+    """
     text = reply_text.lower()
+    price = None
 
-    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:jt|juta)\b", text)
+    m = list(re.finditer(r"(\d+(?:[.,]\d+)?)\s*(?:jt|juta)\b", text))
     if m:
-        return float(m.group(1).replace(",", ".")) * 1_000_000
+        price = float(m[-1].group(1).replace(",", ".")) * 1_000_000
 
-    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:rb|ribu)\b", text)
-    if m:
-        return float(m.group(1).replace(",", ".")) * 1_000
+    if price is None:
+        m = list(re.finditer(r"(\d+(?:[.,]\d+)?)\s*(?:rb|ribu)\b", text))
+        if m:
+            price = float(m[-1].group(1).replace(",", ".")) * 1_000
 
-    m = re.search(r"\b(\d{1,3})k\b", text)
-    if m:
-        return float(m.group(1)) * 1_000
+    if price is None:
+        m = list(re.finditer(r"\b(\d{1,3})k\b", text))
+        if m:
+            price = float(m[-1].group(1)) * 1_000
 
-    m = re.search(r"\b(\d{2,3}(?:\.\d{3})+|\d{4,})\b", text)
-    if m:
-        return float(m.group(1).replace(".", ""))
+    if price is None:
+        m = list(re.finditer(r"\b(\d{2,3}(?:\.\d{3})+|\d{4,})\b", text))
+        if m:
+            price = float(m[-1].group(1).replace(".", ""))
 
-    return None
+    if price is None:
+        return None
+
+    if re.search(r"\btotal\b", text):
+        qty_match = re.search(
+            r"(?:untuk|utk|for)\s+(\d+(?:[.,]\d+)?)\s*"
+            r"(?:kg|ton|batang|meter|pcs|pieces|unit|lembar|dus|karung|sak|liter|roll|gulung|buah|pack|box|kardus|m2|m3)?\b",
+            text,
+        )
+        if qty_match:
+            qty = float(qty_match.group(1).replace(",", "."))
+            if qty > 0:
+                price = price / qty
+
+    return price
 
 
 def _apply_triage_guardrail(parsed: dict, text_input: str) -> dict:
-    """Fase II T1/T4/T5 + Cycle 2 revisi: aturan sekarang membaca teks balasan
-    MENTAH, bukan cuma hasil ekstraksi model -- karena Cycle 2 nunjukkin model
-    kadang ngarang angka dari konteks RFQ (triage_031, salam doang tapi tetap
-    "confirmed" dengan qty/price ngarang) atau nyalin harga RFQ alih-alih
-    baca balasan (triage_040, triage_044). Cuma pernah mengetatkan
-    confirmed -> needs_manual_review, tidak pernah sebaliknya -- jadi tidak
-    menambah missed-confirmation rate.
+    """Fase II T1/T4/T5 + Cycle 2/3 revisi: aturan membaca teks balasan MENTAH,
+    bukan cuma hasil ekstraksi model -- karena model kadang ngarang angka dari
+    konteks RFQ (triage_031) atau nyalin/salah baca harga dari balasan
+    (triage_040, 042, 043). Cuma pernah mengetatkan confirmed ->
+    needs_manual_review, tidak pernah sebaliknya -- jadi tidak menambah
+    missed-confirmation rate secara struktural (meski extraction error masih
+    bisa menyebabkan itu secara tidak langsung, lihat cycle.md Cycle 3c).
     """
     if parsed.get("classification") != "confirmed":
         return parsed
@@ -325,9 +367,6 @@ def _apply_triage_guardrail(parsed: dict, text_input: str) -> dict:
     ctx = _extract_rfq_context(text_input)
     reply_text = _extract_reply_text(text_input)
 
-    # Timpa lead_time_days hasil model dengan hitungan deterministik dari
-    # teks balasan, kalau anchor (dispatched_at) tersedia -- ini juga
-    # memperbaiki extraction_accuracy di eval, bukan cuma classification.
     if ctx["dispatched_at"] is not None:
         computed_lead_time = _resolve_lead_time_from_reply(reply_text, ctx["dispatched_at"])
         extracted["lead_time_days"] = computed_lead_time
