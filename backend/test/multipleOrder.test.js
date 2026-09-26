@@ -49,6 +49,7 @@ test('reply correlation uses reference and supplier phone, not the newest phone 
   ];
   const dependencies = {
     findProcurement: async code => code === 'PSK-AB12' ? { id: 'older', status: 'triaging' } : null,
+    findProcurementById: async id => ({ id, status: 'triaging' }),
     listDispatches: async () => logs,
     normalizePhone: phone => String(phone).replace(/^0/, '62')
   };
@@ -56,6 +57,22 @@ test('reply correlation uses reference and supplier phone, not the newest phone 
   assert.equal(match.dispatch.supplier_id, 'supplier-a');
   const noCode = await correlateReply('Siap pak', '62811111111', dependencies);
   assert.equal(noCode.dispatch, null);
+});
+
+test('reply without an RFQ code matches only one active supplier dispatch', async () => {
+  const logs = [
+    { dispatch_id: 'active', supplier_id: 'supplier-a', phone: '0811111111' },
+    { dispatch_id: 'active', supplier_id: 'supplier-a', phone: '0811111111' },
+    { dispatch_id: 'finished', supplier_id: 'supplier-a', phone: '0811111111' }
+  ];
+  const match = await correlateReply('Siap kirim besok', '62811111111', {
+    findProcurement: async () => null,
+    findProcurementById: async id => ({ id, status: id === 'finished' ? 'completed' : 'dispatched' }),
+    listDispatches: async () => logs,
+    normalizePhone: phone => String(phone).replace(/^0/, '62')
+  });
+  assert.equal(match.procurement.id, 'active');
+  assert.equal(match.dispatch.supplier_id, 'supplier-a');
 });
 
 test('shared phone inside one procurement is left unmatched rather than misattributed', async () => {

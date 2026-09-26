@@ -141,10 +141,11 @@ async function handleIncomingWebhook(payload) {
     const messageText = String(payload?.message || '').trim();
     if (!senderPhone || !messageText) return;
 
-    // One supplier can have several open RFQs. The code and sender must match
-    // the same dispatched procurement; the latest phone match is not enough.
+    // Prefer the RFQ code; a reply without it can match only one active
+    // supplier/procurement pair for this phone number.
     const { procurement, dispatch: latestDispatch } = await correlateReply(messageText, senderPhone, {
         findProcurement: procurementsStore.getByReference,
+        findProcurementById: procurementsStore.get,
         listDispatches: dispatchLog.getAllLogs, normalizePhone
     });
     const summaryReply = latestDispatch && procurement.status === 'awaiting_summary_confirmation';
@@ -185,9 +186,12 @@ async function handleIncomingWebhook(payload) {
     await repliesStore.addReply(replyEntry);
 
     if (latestDispatch) {
-        // Jangan ditunggu, biarkan asynchronous
-        processReplyClassification(replyEntry, latestDispatch, messageId).catch(error =>
-            console.error('Gagal memproses triase webhook', error));
+        if (!['needs_manual_review', 'awaiting_summary_confirmation', 'completed'].includes(procurement.status)) {
+            await procurementsStore.setStatus(procurement.id, 'triaging');
+        }
+        // Vercel dapat menghentikan invocation setelah respons webhook dikirim.
+        // Selesaikan triase sebelum memberi HTTP 200 ke Fonnte.
+        await processReplyClassification(replyEntry, latestDispatch, messageId);
     }
     return { procurement_id: procurement?.id || null, message_id: messageId,
         message_type: latestDispatch ? 'negotiation' : 'unmatched' };
