@@ -12,7 +12,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 router.post('/', async (req, res) => {
   try {
-      const { allocations, requirement, companyName, type } = req.body;
+      const { allocations, requirement, companyName, type, reply_ai_provider } = req.body;
 
       if (!Array.isArray(allocations) || !allocations.length || !requirement) {
           return res.status(400).json({ error: "Missing allocations or requirement" });
@@ -20,6 +20,9 @@ router.post('/', async (req, res) => {
 
       const isFinalDecision = type === 'final';
       if (!isFinalDecision) {
+          if (reply_ai_provider !== undefined && !['gemma', 'gemini'].includes(reply_ai_provider)) {
+              return res.status(400).json({ error: 'Model AI balasan supplier tidak valid' });
+          }
           const ids = allocations.map(allocation => allocation?.supplier_id);
           if (allocations.length > MAX_RFQ_SUPPLIERS) {
               return res.status(400).json({ error: `RFQ hanya dapat dikirim ke maksimal ${MAX_RFQ_SUPPLIERS} supplier` });
@@ -54,7 +57,7 @@ router.post('/', async (req, res) => {
               buyerInfo.delivery_lng = Number(requirement.delivery_lng);
               buyerInfo.delivery_address = String(requirement.delivery_address || '').trim();
           }
-          procurement = await procurementsStore.create(dispatch_id, requirement, buyerInfo);
+          procurement = await procurementsStore.create(dispatch_id, requirement, buyerInfo, reply_ai_provider || 'gemma');
       }
       const results = [];
       let remainingAllocationQty = requirement.quantity > 0 ? requirement.quantity : 0;

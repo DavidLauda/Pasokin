@@ -53,6 +53,7 @@ export default function ProcurementDetail({ procurementId, refreshKey, onBack, o
             <p className="font-mono text-xs font-semibold text-teal-700">{detail.reference_code}</p>
             <h2 className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{detail.material_summary || 'Material belum diisi'}</h2>
             <p className="mt-2 text-sm text-slate-500">Dibuat {formatProcurementDate(detail.created_at)} · Diperbarui {formatProcurementDate(detail.updated_at)}</p>
+            <p className="mt-1 text-xs text-slate-500">Analisis balasan supplier: {detail.reply_ai_provider === 'gemini' ? 'Gemini' : 'Gemma'}</p>
           </div>
           <ProcurementStatus value={detail.status} />
         </div>

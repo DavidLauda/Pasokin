@@ -26,6 +26,7 @@ test('new procurements retry code collision and preserve the shared contract', a
   assert.match(row.reference_code, /^PSK-[A-Z0-9]{4}$/);
   assert.equal(row.material_summary, 'Baja Ringan 10000 kg');
   assert.equal(row.status, 'dispatched');
+  assert.equal(row.reply_ai_provider, 'gemma');
   assert.equal(row.weight_preset_used, '{"cost":0.5}');
   assert.equal(inserts.at(-1).table, 'procurements');
 });
@@ -57,6 +58,14 @@ test('reply correlation uses reference and supplier phone, not the newest phone 
   assert.equal(match.dispatch.supplier_id, 'supplier-a');
   const noCode = await correlateReply('Siap pak', '62811111111', dependencies);
   assert.equal(noCode.dispatch, null);
+});
+
+test('procurements persist the selected reply model independently', async () => {
+  const requirement = { materialName: 'Baja', quantity: 100, unit: 'batang' };
+  const gemini = await store.create('1b45ceeb-f705-44b3-a8ad-a499269d2115', requirement, {}, 'gemini');
+  const gemma = await store.create('c593c6ba-c9b5-453b-94f7-c02bb72a3815', requirement);
+  assert.equal(gemini.reply_ai_provider, 'gemini');
+  assert.equal(gemma.reply_ai_provider, 'gemma');
 });
 
 test('reply without an RFQ code matches only one active supplier dispatch', async () => {

@@ -1,4 +1,5 @@
 const axios = require('axios');
+const geminiTriageService = require('./geminiTriageService');
 
 const TRIAGE_SERVICE_URL = process.env.TRIAGE_SERVICE_URL || 'http://localhost:8001';
 
@@ -21,7 +22,8 @@ function formatIndoDate(dateInput) {
 // WAJIB di-pass supaya text_input yang dikirim ke model PERSIS SAMA formatnya
 // dengan data training baru ("Tanggal RFQ dikirim: ... Target kirim: ...") --
 // kalau nggak, retrain jadi sia-sia karena train/serve skew.
-async function classifySupplierReply(requirementSnapshot, allocationSnapshot, replyText, dispatchedAt) {
+async function classifySupplierReply(requirementSnapshot, allocationSnapshot, replyText, dispatchedAt, provider = 'gemma') {
+    if (!['gemma', 'gemini'].includes(provider)) throw new Error('Model AI balasan supplier tidak valid');
     // Format baru (konsisten dengan data training hasil retrain T2/T3):
     // "Konteks RFQ: <material> <qty> <unit> Rp<harga>. Tanggal RFQ dikirim: <tgl>. Target kirim: <tgl>. Balasan Supplier: ..."
     const sentDateStr = formatIndoDate(dispatchedAt);
@@ -39,7 +41,12 @@ async function classifySupplierReply(requirementSnapshot, allocationSnapshot, re
           `Balasan Supplier: ${replyText}`;
 
     try {
-        // Mode demo hanya memalsukan transport WhatsApp; triase tetap memakai Gemma.
+        // Mode demo hanya memalsukan transport WhatsApp; model yang dipilih tetap dipakai.
+        if (provider === 'gemini') {
+            return await geminiTriageService.classifySupplierReply(
+                requirementSnapshot, allocationSnapshot, replyText, dispatchedAt
+            );
+        }
         const response = await axios.post(
             `${TRIAGE_SERVICE_URL}/triage`,
             { text_input: textInput },
@@ -54,10 +61,10 @@ async function classifySupplierReply(requirementSnapshot, allocationSnapshot, re
             ai_extracted
         };
     } catch (e) {
-        console.error("Triage service Gemma gagal atau tidak dapat dihubungi", e.message);
+        console.error(`Triage service ${provider} gagal atau tidak dapat dihubungi`, e.message);
         return {
             classification: "needs_manual_review",
-            ai_summary: "Gemma tidak dapat menganalisis balasan supplier. Butuh review manual.",
+            ai_summary: `${provider === 'gemini' ? 'Gemini' : 'Gemma'} tidak dapat menganalisis balasan supplier. Butuh review manual.`,
             ai_extracted: null
         };
     }

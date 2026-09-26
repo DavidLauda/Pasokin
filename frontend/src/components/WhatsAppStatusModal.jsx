@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import client from '../api/client';
 
-export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allocations, companyName, onDispatchComplete }) {
+export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allocations, companyName, replyAiProvider, onDispatchComplete }) {
     const [waStatus, setWaStatus] = useState({ connectionState: 'disconnected', qr: null, isDemo: false });
     const [dispatchStatus, setDispatchStatus] = useState('idle'); // 'idle' | 'dispatching' | 'done'
     const [results, setResults] = useState([]);
@@ -34,6 +34,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
             client.post('/dispatch-wa', {
                 allocations,
                 requirement,
+                reply_ai_provider: replyAiProvider,
                 companyName: companyName || "Pasokin Agent"
             })
             .then(res => {
@@ -46,7 +47,7 @@ export default function WhatsAppStatusModal({ isOpen, onClose, requirement, allo
                 setDispatchStatus('done');
             });
         }
-    }, [isOpen, waStatus.connectionState, dispatchStatus, allocations, requirement, companyName, onDispatchComplete]);
+    }, [isOpen, waStatus.connectionState, dispatchStatus, allocations, requirement, companyName, replyAiProvider, onDispatchComplete]);
 
     if (!isOpen) return null;
 

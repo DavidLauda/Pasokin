@@ -8,13 +8,17 @@ function referenceCode() {
   return `PSK-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 }
 
-async function create(id, requirement, buyerInfo = {}) {
+async function create(id, requirement, buyerInfo = {}, replyAiProvider = 'gemma') {
+  if (!['gemma', 'gemini'].includes(replyAiProvider)) {
+    throw Object.assign(new Error('Model AI balasan supplier tidak valid'), { status: 400 });
+  }
   const material = requirement.materialName || requirement.material_summary || 'Material';
   const summary = `${material} ${requirement.quantity ?? ''} ${requirement.unit || ''}`.trim();
   for (let attempt = 0; attempt < 12; attempt++) {
     try {
       return await db.insert('procurements', {
         id, reference_code: referenceCode(), buyer_info: buyerInfo,
+        reply_ai_provider: replyAiProvider,
         material_summary: summary, parsed_material_summary: requirement,
         weight_preset_used: typeof requirement.priority === 'string'
           ? requirement.priority : JSON.stringify(requirement.priority || {}),

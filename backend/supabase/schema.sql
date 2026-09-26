@@ -54,6 +54,7 @@ create table if not exists public.procurements (
   material_summary text not null default '',
   parsed_material_summary jsonb not null default '{}'::jsonb,
   status public.procurement_status not null default 'parsing',
+  reply_ai_provider text not null default 'gemma' check (reply_ai_provider in ('gemma', 'gemini')),
   weight_preset_used text,
   negotiated_supplier_id uuid references public.suppliers(supplier_uuid),
   manual_price numeric,
@@ -74,6 +75,13 @@ alter table public.suppliers alter column supplier_uuid set not null;
 create unique index if not exists suppliers_supplier_uuid_key on public.suppliers (supplier_uuid);
 alter table public.procurements add column if not exists reference_code text;
 alter table public.procurements add column if not exists material_summary text not null default '';
+alter table public.procurements add column if not exists reply_ai_provider text not null default 'gemma';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'procurements_reply_ai_provider_check') then
+    alter table public.procurements add constraint procurements_reply_ai_provider_check
+      check (reply_ai_provider in ('gemma', 'gemini'));
+  end if;
+end $$;
 alter table public.procurements add column if not exists negotiated_supplier_id uuid references public.suppliers(supplier_uuid);
 alter table public.procurements add column if not exists manual_price numeric;
 alter table public.procurements add column if not exists manual_unit text;

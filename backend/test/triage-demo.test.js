@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const axios = require('axios');
 const triageService = require('../src/services/triageService');
+const geminiTriageService = require('../src/services/geminiTriageService');
 
 const requirement = { materialName: 'Baja Ringan', unit: 'batang' };
 const allocation = { qty: 100, price: 62000, lead_time_days: 3 };
@@ -38,4 +39,28 @@ test('Gemma outage needs manual review instead of simulated AI confirmation', as
     assert.equal(result.classification, 'needs_manual_review');
     assert.match(result.ai_summary, /Gemma tidak dapat menganalisis/);
     assert.equal(result.ai_extracted, null);
+});
+
+test('Gemini selection processes supplier replies without calling Gemma', async t => {
+    t.mock.method(axios, 'post', async () => { throw new Error('Gemma must not run'); });
+    t.mock.method(geminiTriageService, 'classifySupplierReply', async () => ({
+        classification: 'confirmed', ai_summary: 'Hasil Gemini',
+        ai_extracted: { qty: 100, price: 62000, lead_time_days: 3 }
+    }));
+
+    const result = await triageService.classifySupplierReply(requirement, allocation,
+        '100 batang, kirim 3 hari', new Date().toISOString(), 'gemini');
+
+    assert.equal(result.classification, 'confirmed');
+    assert.equal(result.ai_summary, 'Hasil Gemini');
+});
+
+test('Gemini outage needs manual review instead of silently switching models', async t => {
+    t.mock.method(geminiTriageService, 'classifySupplierReply', async () => {
+        throw new Error('Gemini unavailable');
+    });
+    const result = await triageService.classifySupplierReply(requirement, allocation,
+        'Kami setuju', null, 'gemini');
+    assert.equal(result.classification, 'needs_manual_review');
+    assert.match(result.ai_summary, /Gemini tidak dapat menganalisis/);
 });

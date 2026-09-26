@@ -33,6 +33,7 @@ export default function RequirementForm({ onConfirm }) {
     
     // Summary popup
     const [showSummary, setShowSummary] = useState(false);
+    const [replyAiProvider, setReplyAiProvider] = useState('gemma');
     const [parsedRequirement, setParsedRequirement] = useState(null);
     const [candidates, setCandidates] = useState([]);
     const [totalMatches, setTotalMatches] = useState(0);
@@ -372,7 +373,7 @@ export default function RequirementForm({ onConfirm }) {
             {/* AI Summary Popup - Editable */}
             {showSummary && parsedRequirement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden border border-slate-200">
                         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                                 <Sparkles className="h-5 w-5 text-teal-500" />
@@ -383,7 +384,7 @@ export default function RequirementForm({ onConfirm }) {
                             </button>
                         </div>
                         
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-y-auto">
                             <p className="text-sm text-slate-500 font-medium">AI telah menganalisis permintaan Anda. Anda bisa merevisi langsung di bawah ini:</p>
                             
                             <div className="space-y-3">
@@ -427,6 +428,16 @@ export default function RequirementForm({ onConfirm }) {
                                     />
                                 </div>
                             </div>
+                            <label className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 cursor-pointer">
+                                <span>
+                                    <span className="block text-sm font-bold text-slate-800">Gunakan Gemini untuk balasan supplier</span>
+                                    <span className="block text-xs text-slate-500 mt-1">{replyAiProvider === 'gemini' ? 'Gemini menganalisis dan mem-parsing balasan supplier.' : 'Gemma menganalisis dan mem-parsing balasan supplier.'} Parsing RFQ buyer tetap memakai Gemini.</span>
+                                </span>
+                                <input type="checkbox" role="switch" aria-label="Gunakan Gemini untuk balasan supplier"
+                                    checked={replyAiProvider === 'gemini'} onChange={event => setReplyAiProvider(event.target.checked ? 'gemini' : 'gemma')}
+                                    className="sr-only peer" />
+                                <span aria-hidden="true" className="relative h-7 w-12 shrink-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-teal-500 peer-focus-visible:ring-4 peer-focus-visible:ring-teal-200 after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-5" />
+                            </label>
                             
                             <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
                                 <p className="text-sm font-bold text-teal-800 flex items-center gap-2">
@@ -442,7 +453,7 @@ export default function RequirementForm({ onConfirm }) {
                             </div>}
                         </div>
                         
-                        <div className="p-5 border-t border-slate-100 bg-white flex justify-end gap-3">
+                        <div className="p-5 border-t border-slate-100 bg-white flex shrink-0 justify-end gap-3">
                             <button type="button" onClick={() => setShowSummary(false)}
                                 className="flex items-center gap-2 px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
                             >
@@ -463,6 +474,7 @@ export default function RequirementForm({ onConfirm }) {
                 isOpen={waModalOpen}
                 onClose={handleWaModalClose}
                 requirement={parsedRequirement}
+                replyAiProvider={replyAiProvider}
                 allocations={pendingAllocations}
                 companyName="PT Pasokin Demo"
                 onDispatchComplete={handleDispatchComplete}

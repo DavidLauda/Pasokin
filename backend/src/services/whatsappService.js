@@ -19,11 +19,14 @@ const STATUS_CACHE_MS = 10000; // hindari nge-hit API Fonnte tiap kali modal pol
 
 async function processReplyClassification(replyEntry, latestDispatch, messageId = null) {
     try {
+        const procurement = replyEntry.dispatch_id
+            ? await procurementsStore.get(replyEntry.dispatch_id) : null;
         const result = await triageService.classifySupplierReply(
             latestDispatch.requirement_snapshot,
             latestDispatch.allocation_snapshot,
             replyEntry.message_received,
-            latestDispatch.dispatched_at
+            latestDispatch.dispatched_at,
+            procurement?.reply_ai_provider || 'gemma'
         );
         await repliesStore.updateReply(replyEntry.reply_id, {
             classification: result.classification,
@@ -32,7 +35,7 @@ async function processReplyClassification(replyEntry, latestDispatch, messageId 
         });
         if (messageId) await procurementsStore.classifyMessage(messageId, result.classification);
         if (replyEntry.dispatch_id) {
-            const current = await procurementsStore.get(replyEntry.dispatch_id);
+            const current = procurement;
             if (current && !['awaiting_summary_confirmation', 'completed'].includes(current.status)) {
                 if (result.classification === 'needs_manual_review') {
                     await procurementsStore.setStatus(replyEntry.dispatch_id, 'needs_manual_review');
