@@ -15,6 +15,7 @@ test('buyer and supplier routes require the matching authenticated role', async 
   const originals = {
     getUser: authService.getUser,
     signIn: authService.signIn,
+    signInQuick: authService.signInQuick,
     register: authService.register,
     getSupplierDetail: dataStore.getSupplierDetail,
     addSupplier: dataStore.addSupplier,
@@ -31,6 +32,7 @@ test('buyer and supplier routes require the matching authenticated role', async 
     return { access_token: 'buyer-token', user: { role: 'buyer' } };
   };
   authService.register = async () => ({ access_token: 'supplier-token', user: { role: 'supplier' } });
+  authService.signInQuick = async () => ({ access_token: 'buyer-token', user: { role: 'buyer' } });
   dataStore.getSupplierDetail = async id => ({ id, name: 'Mitra Satu' });
   dataStore.addSupplier = async (changes, id) => ({ id, ...changes });
   dataStore.updateSupplier = async (id, changes) => ({ id, ...changes });
@@ -43,6 +45,12 @@ test('buyer and supplier routes require the matching authenticated role', async 
     assert.equal(login.status, 200);
     assert.equal((await login.json()).user.role, 'buyer');
     assert.equal(selectedRole, 'buyer');
+    const quick = await fetch(`${base}/auth/quick-login`, { method: 'POST' });
+    assert.equal(quick.status, 200);
+    assert.equal((await quick.json()).access_token, 'buyer-token');
+    const availability = await fetch(`${base}/auth/quick-login-availability`);
+    assert.equal(availability.status, 200);
+    assert.equal(typeof (await availability.json()).enabled, 'boolean');
     const register = await fetch(`${base}/auth/register`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'supplier@example.com', password: 'password123', role: 'supplier' }) });
     assert.equal(register.status, 201);
@@ -70,6 +78,7 @@ test('buyer and supplier routes require the matching authenticated role', async 
     await new Promise(resolve => server.close(resolve));
     authService.getUser = originals.getUser;
     authService.signIn = originals.signIn;
+    authService.signInQuick = originals.signInQuick;
     authService.register = originals.register;
     dataStore.getSupplierDetail = originals.getSupplierDetail;
     dataStore.addSupplier = originals.addSupplier;

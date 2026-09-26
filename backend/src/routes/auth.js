@@ -13,6 +13,16 @@ router.post('/login', async (req, res, next) => {
   catch (error) { next(error); }
 });
 
+router.post('/quick-login', async (req, res, next) => {
+  try { res.json(await authService.signInQuick()); }
+  catch (error) { next(error); }
+});
+
+router.get('/quick-login-availability', (req, res) => {
+  res.json({ enabled: process.env.QUICK_LOGIN_ENABLED === 'true' &&
+    Boolean(process.env.QUICK_LOGIN_EMAIL && process.env.QUICK_LOGIN_PASSWORD) });
+});
+
 router.post('/refresh', async (req, res, next) => {
   try { res.json(await authService.refresh(req.body?.refresh_token)); }
   catch (error) { next(error); }

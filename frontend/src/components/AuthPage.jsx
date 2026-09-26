@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Bot, Building2, Truck } from 'lucide-react';
 import client, { saveSession } from '../api/client';
 
@@ -11,6 +11,15 @@ export default function AuthPage({ onAuthenticated, initialRole = 'buyer' }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [quickLoginAvailable, setQuickLoginAvailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    client.get('/auth/quick-login-availability')
+      .then(({ data }) => { if (active) setQuickLoginAvailable(data.enabled === true); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const submit = async event => {
     event.preventDefault();
@@ -27,6 +36,18 @@ export default function AuthPage({ onAuthenticated, initialRole = 'buyer' }) {
       onAuthenticated(data.user);
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Tidak dapat masuk. Coba lagi.');
+    } finally { setBusy(false); }
+  };
+
+  const enterQuick = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const { data } = await client.post('/auth/quick-login');
+      saveSession(data);
+      onAuthenticated(data.user);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'Quick Login gagal. Coba lagi.');
     } finally { setBusy(false); }
   };
 
@@ -59,6 +80,10 @@ export default function AuthPage({ onAuthenticated, initialRole = 'buyer' }) {
           <button type="submit" disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white hover:bg-teal-800 disabled:opacity-60">{busy ? 'Memproses…' : mode === 'login' ? `Masuk sebagai ${role === 'buyer' ? 'Buyer' : 'Supplier'}` : 'Buat akun'}<ArrowRight className="h-4 w-4" /></button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-500">{mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'} <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }} className="font-bold text-teal-700">{mode === 'login' ? 'Daftar sekarang' : 'Masuk di sini'}</button></p>
+        {mode === 'login' && quickLoginAvailable && <div className="mt-6 border-t border-slate-200 pt-6">
+          <button type="button" onClick={enterQuick} disabled={busy} className="w-full rounded-xl border border-teal-700 px-4 py-3 font-bold text-teal-800 hover:bg-teal-50 disabled:opacity-60">{busy ? 'Masuk…' : 'Quick Login ke Halaman Utama'}</button>
+          <p className="mt-2 text-center text-xs text-slate-500">Masuk cepat sebagai buyer tanpa mengetik email atau kata sandi.</p>
+        </div>}
       </div>
     </section>
   </main>;

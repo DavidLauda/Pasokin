@@ -5,6 +5,9 @@ const http = require('node:http');
 test('Supabase Auth registration, login, refresh, verification, and logout flow', async () => {
   const previousUrl = process.env.SUPABASE_URL;
   const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const previousQuickEnabled = process.env.QUICK_LOGIN_ENABLED;
+  const previousQuickEmail = process.env.QUICK_LOGIN_EMAIL;
+  const previousQuickPassword = process.env.QUICK_LOGIN_PASSWORD;
   let user = null;
   const requests = [];
   const server = http.createServer(async (request, response) => {
@@ -50,11 +53,31 @@ test('Supabase Auth registration, login, refresh, verification, and logout flow'
     assert.equal((await auth.getUser('access-token')).id, 'user-1');
     await auth.signOut('access-token');
     assert.ok(requests.some(item => item.path === '/auth/v1/logout'));
+
+    process.env.QUICK_LOGIN_ENABLED = 'false';
+    await assert.rejects(auth.signInQuick(), error => error.status === 403);
+    await auth.register({ email: 'buyer@example.com', password: 'buyer-password',
+      name: 'Buyer Demo', role: 'buyer' });
+    process.env.QUICK_LOGIN_ENABLED = 'true';
+    process.env.QUICK_LOGIN_EMAIL = 'buyer@example.com';
+    process.env.QUICK_LOGIN_PASSWORD = 'buyer-password';
+    const quick = await auth.signInQuick();
+    assert.equal(quick.user.role, 'buyer');
+    assert.equal(quick.user.email, 'buyer@example.com');
+    const quickRequest = requests.filter(item => item.path === '/auth/v1/token').at(-1);
+    assert.equal(quickRequest.body.email, 'buyer@example.com');
+    assert.equal(quickRequest.body.password, 'buyer-password');
   } finally {
     await new Promise(resolve => server.close(resolve));
     if (previousUrl === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = previousUrl;
     if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
+    if (previousQuickEnabled === undefined) delete process.env.QUICK_LOGIN_ENABLED;
+    else process.env.QUICK_LOGIN_ENABLED = previousQuickEnabled;
+    if (previousQuickEmail === undefined) delete process.env.QUICK_LOGIN_EMAIL;
+    else process.env.QUICK_LOGIN_EMAIL = previousQuickEmail;
+    if (previousQuickPassword === undefined) delete process.env.QUICK_LOGIN_PASSWORD;
+    else process.env.QUICK_LOGIN_PASSWORD = previousQuickPassword;
   }
 });
