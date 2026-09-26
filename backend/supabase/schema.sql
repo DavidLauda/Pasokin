@@ -28,6 +28,7 @@ create table if not exists public.suppliers (
   location text,
   lat double precision,
   lng double precision,
+  location_verified boolean not null default false,
   max_capacity_qty numeric not null default 0 check (max_capacity_qty >= 0),
   min_order_qty numeric not null default 0 check (min_order_qty >= 0),
   price_per_unit numeric not null default 0 check (price_per_unit >= 0),
@@ -63,6 +64,10 @@ create table if not exists public.procurements (
 );
 
 -- Additive migration for databases created before concurrent procurements.
+alter table public.suppliers add column if not exists location_verified boolean not null default false;
+-- Existing saved pins were selected by a supplier in the earlier registration UI.
+update public.suppliers set location_verified = true
+where location_verified = false and lat is not null and lng is not null;
 alter table public.suppliers add column if not exists supplier_uuid uuid default gen_random_uuid();
 update public.suppliers set supplier_uuid = gen_random_uuid() where supplier_uuid is null;
 alter table public.suppliers alter column supplier_uuid set not null;

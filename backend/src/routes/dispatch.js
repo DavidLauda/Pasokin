@@ -5,6 +5,8 @@ const whatsappService = require('../services/whatsappService');
 const dispatchLog = require('../services/dispatchLog');
 const procurementsStore = require('../services/procurementsStore');
 const crypto = require('crypto');
+const { isValidPoint } = require('../services/distance');
+const { MAX_RFQ_SUPPLIERS } = require('../services/rfqLimits');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -12,11 +14,20 @@ router.post('/', async (req, res) => {
   try {
       const { allocations, requirement, companyName, type } = req.body;
 
-      if (!allocations || !requirement) {
+      if (!Array.isArray(allocations) || !allocations.length || !requirement) {
           return res.status(400).json({ error: "Missing allocations or requirement" });
       }
 
       const isFinalDecision = type === 'final';
+      if (!isFinalDecision) {
+          const ids = allocations.map(allocation => allocation?.supplier_id);
+          if (allocations.length > MAX_RFQ_SUPPLIERS) {
+              return res.status(400).json({ error: `RFQ hanya dapat dikirim ke maksimal ${MAX_RFQ_SUPPLIERS} supplier` });
+          }
+          if (ids.some(id => !id) || new Set(ids).size !== ids.length) {
+              return res.status(400).json({ error: 'Setiap supplier RFQ harus unik dan memiliki ID' });
+          }
+      }
 
       if (isFinalDecision && !req.body.dispatch_id) {
           return res.status(400).json({ error: 'dispatch_id wajib untuk keputusan akhir' });
@@ -37,7 +48,13 @@ router.post('/', async (req, res) => {
       const dispatch_id = isFinalDecision ? req.body.dispatch_id : crypto.randomUUID();
       let procurement = null;
       if (!isFinalDecision) {
-          procurement = await procurementsStore.create(dispatch_id, requirement, { companyName: companyName || null });
+          const buyerInfo = { companyName: companyName || null };
+          if (isValidPoint(requirement.delivery_lat, requirement.delivery_lng)) {
+              buyerInfo.delivery_lat = Number(requirement.delivery_lat);
+              buyerInfo.delivery_lng = Number(requirement.delivery_lng);
+              buyerInfo.delivery_address = String(requirement.delivery_address || '').trim();
+          }
+          procurement = await procurementsStore.create(dispatch_id, requirement, buyerInfo);
       }
       const results = [];
       let remainingAllocationQty = requirement.quantity > 0 ? requirement.quantity : 0;

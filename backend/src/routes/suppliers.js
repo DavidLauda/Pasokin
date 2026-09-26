@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const dataStore = require('../services/dataStore');
+const { geocodeAddress } = require('../services/geocoding');
 const { requireRole } = require('../middleware/auth');
 
 router.get('/me', requireRole('supplier'), async (req, res, next) => {
@@ -50,18 +51,9 @@ router.post('/geocode', requireRole('buyer', 'supplier'), async (req, res, next)
   try {
     const address = String(req.body.address || '').trim();
     if (address.length < 10 || address.length > 500) return res.status(400).json({ error: 'Alamat tidak valid' });
-    if (!process.env.GOOGLE_GEOCODING_API_KEY) {
-      return res.status(503).json({ error: 'Geocoding belum dikonfigurasi; pilih pin pada peta' });
-    }
-    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-    url.searchParams.set('address', address);
-    url.searchParams.set('key', process.env.GOOGLE_GEOCODING_API_KEY);
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error('Layanan geocoding gagal');
-    const result = await response.json();
-    const location = result.results?.[0]?.geometry?.location;
+    const location = await geocodeAddress(address);
     if (!location) return res.status(404).json({ error: 'Alamat tidak ditemukan; pilih pin pada peta' });
-    res.json({ lat: location.lat, lng: location.lng });
+    res.json(location);
   } catch (error) { next(error); }
 });
 
