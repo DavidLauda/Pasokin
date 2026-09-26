@@ -1,8 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const optimizerService = require('../services/optimizerService');
-const geminiService = require('../services/geminiService');
 const procurementsStore = require('../services/procurementsStore');
+
+function describeAllocation(requirement, savingsPercent) {
+  const { cost = 40, speed = 40, risk = 20 } = requirement.priority || {};
+  return `Alokasi beberapa pemasok dipilih berdasarkan prioritas pengadaan Anda (Biaya: ${cost}%, Kecepatan: ${speed}%, Risiko: ${risk}%). Estimasi penghematan adalah ${savingsPercent}%.`;
+}
 
 router.post('/', async (req, res) => {
   try {
@@ -23,12 +27,8 @@ router.post('/', async (req, res) => {
           await procurementsStore.setStatus(dispatch_id, 'awaiting_approval');
       }
 
-      // 2. Dapatkan alasan bahasa natural (AI Reasoning) dari Gemini API
-      const ai_reasoning = await geminiService.generateAllocationReasoning(
-          requirement,
-          optimization.recommended_allocations,
-          optimization.savings_estimate_percent
-      );
+      // Ringkasan deterministik; Gemini hanya dipakai untuk parsing RFQ buyer.
+      const ai_reasoning = describeAllocation(requirement, optimization.savings_estimate_percent);
 
       // Kembalikan sesuai struktur yang dibutuhkan frontend
       res.json({

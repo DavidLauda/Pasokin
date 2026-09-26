@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Sparkles, Bot, RotateCcw, CheckCircle, AlertTriangle, Clock, ExternalLink, Check, Send, Loader2 } from 'lucide-react';
+import { Sparkles, RotateCcw, CheckCircle, AlertTriangle, Clock, ExternalLink, Check, Send, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 
@@ -251,7 +251,7 @@ export default function OptimizationDashboard({ data, demoMode, onFinalSubmitted
                 </div>
                 <div>
                     <h3 className="text-xl font-extrabold text-slate-900 mb-2 flex items-center gap-2">
-                        Analisis AI Pasokin <Bot className="h-5 w-5 text-amber-500" />
+                        Ringkasan Pengadaan
                     </h3>
                     <p className="text-slate-600 leading-relaxed text-base font-medium">
                         {computedOptimization?.ai_reasoning || (

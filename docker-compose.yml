@@ -42,9 +42,8 @@ services:
       - BASE_MODEL_ID=google/gemma-2b-it
       - ADAPTER_PATH=/app/adapter
       - USE_4BIT=auto
-      - DEMO_MODE=${DEMO_MODE:-true}
-      # Hanya dibutuhkan kalau DEMO_MODE=false (memuat model Gemma asli dari HuggingFace,
-      # yang gated dan butuh token). Set di shell host sebelum `docker-compose up`, mis:
+      # Gemma tetap dimuat saat mode demo; model gated ini butuh token Hugging Face.
+      # Set di shell host sebelum `docker-compose up`, mis:
       # HF_TOKEN=hf_xxx docker-compose up --build
       - HF_TOKEN=${HF_TOKEN}
     # Kalau host punya GPU dan pakai Docker + nvidia-container-toolkit,

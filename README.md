@@ -8,8 +8,7 @@ Pasokin is a smart B2B web application designed for manufacturing SMBs in Indone
 graph TD
     A["React Frontend\n(Vite, Tailwind, Recharts)"] <-->|REST API| B(Express Node.js Backend)
 
-    B -->|Intent Parsing & Optimization| C{AI Engine}
-    C <-->|Gemini 2.5 Flash| D[Google GenAI]
+    B -->|Buyer RFQ parsing| D[Google Gemini]
 
     B -->|WhatsApp Dispatch & Webhook| E[Fonnte Gateway API]
     E <-->|Real-time Messages| F[WhatsApp Web/Mobile]
@@ -23,9 +22,7 @@ graph TD
 
     %% AI Use Cases
     D -.->|1. Parse Natural Language| B
-    D -.->|2. Explain Allocation Strategy| B
-    D -.->|3. Draft RFQ Messages| B
-    H -.->|4. Triage Supplier Replies| B
+    H -.->|2. Triage Supplier Replies| B
 ```
 
 ## 🤖 How AI is Used in Pasokin
@@ -33,16 +30,16 @@ graph TD
 Pasokin utilizes AI as a core architectural driver, moving beyond a simple chatbot interface to act as an autonomous agent with human-in-the-loop checkpoints:
 1. **Intelligent Parsing**: We use LLMs with structured outputs to convert messy, free-text material requests (e.g., "Butuh baja ringan 50rb batang besok") into strict JSON parameters.
 2. **Multi-Criteria Optimization Engine**: A deterministic greedy algorithm evaluates suppliers using min-max normalization against the user's explicit Cost/Speed/Risk weights, automatically splitting large volumes across multiple vendors to respect maximum capacity constraints and protect minimum order quantities (MOQ).
-3. **Reasoning & Communication**: The LLM writes professional, personalized WhatsApp RFQ messages for each allocated supplier and explains its overall allocation strategy to the human operator in plain Bahasa Indonesia.
-4. **Auto-Triage**: When suppliers reply via WhatsApp, the AI automatically reads their messages, compares them against the original requested terms, and extracts the final agreed price/qty/date. If the supplier haggles, the AI routes the conversation to a "Needs Manual Review" inbox; otherwise, it marks it "Confirmed" for immediate PO generation.
+3. **Reasoning & Communication**: The backend creates WhatsApp RFQ messages from templates and summarizes the computed allocation in Bahasa Indonesia.
+4. **Auto-Triage**: Gemma reads supplier replies, compares them against the original requested terms, and extracts the final agreed price/qty/date. If the supplier haggles, it routes the conversation to a "Needs Manual Review" inbox; otherwise, it marks it "Confirmed" for immediate PO generation.
 
 ## 🚀 Setup & Run Instructions
 
 ### Prasyarat (Prerequisites)
 - Docker Desktop dan Docker Compose (cara termudah untuk menjalankan seluruh stack)
-- Google Gemini API Key untuk parsing kebutuhan dan reasoning optimasi
+- Google Gemini API Key untuk parsing RFQ buyer
 - Fonnte token hanya untuk WhatsApp live
-- Hugging Face token hanya untuk menjalankan Gemma asli (`DEMO_MODE=false`)
+- Hugging Face token untuk menjalankan Gemma dalam mode demo maupun live
 - Proyek Supabase dengan akses SQL Editor dan service role key
 
 ### Instalasi & Menjalankan Aplikasi (Sesuai Ketentuan COMPFEST)
@@ -73,7 +70,7 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
    `HF_TOKEN` harus memiliki akses ke model gated `google/gemma-2b-it`. Docker Compose akan meneruskan token tersebut ke `triage-service` saat container dijalankan.
 
-   Untuk presentasi tanpa koneksi WhatsApp atau download model Gemma, gunakan `DEMO_MODE=true`. Mode ini mensimulasikan koneksi WhatsApp dan melewati loading model Gemma 2B.
+   Untuk presentasi tanpa koneksi WhatsApp, gunakan `DEMO_MODE=true`. Mode ini hanya mensimulasikan pengiriman dan balasan WhatsApp; triase balasan tetap memakai Gemma 2B.
 
    `SUPABASE_SERVICE_ROLE_KEY` hanya boleh ada di environment backend atau file `.env` lokal yang diabaikan Git. Jangan memasukkannya ke Vite, frontend, atau commit. Browser menerima pembaruan status melalui endpoint backend `/api/procurements/events`, sehingga anon key tidak diperlukan oleh frontend. Seluruh tabel memakai RLS dan akses anon dicabut.
 
@@ -100,7 +97,7 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
    - Backend API berjalan di: `http://localhost:4000`
    - Health check: `http://localhost:4000/api/health`
 
-   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp dan triage service Gemma. Atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend yang dapat diakses Fonnte, bukan `localhost`.
+   Mode yang digunakan mengikuti nilai `DEMO_MODE` pada `.env`. Dalam kedua mode, triase supplier menggunakan service Gemma. Dengan `DEMO_MODE=false`, aplikasi menggunakan Fonnte untuk WhatsApp. Atur webhook Fonnte ke `POST /api/wa/webhook` pada URL publik backend yang dapat diakses Fonnte, bukan `localhost`.
 
    Backend membaca dan menulis supplier, procurement, alokasi, balasan, riwayat RFQ, dan pengaturan dari Supabase. Jalankan `cd backend && npm test` untuk uji otomatis. Untuk produksi, tambahkan autentikasi dan otorisasi pengguna di backend sebelum membuka API ke publik; RLS saja tidak membatasi pemanggil endpoint Express yang belum memiliki login.
 
@@ -108,7 +105,7 @@ Sesuai dengan ketentuan penyisihan, sistem ini telah dikonfigurasi agar dapat di
 
 ### Proses Loading Model Triage
 
-Saat `DEMO_MODE=false`, container `triage-service` melakukan langkah berikut ketika startup:
+Dalam mode demo maupun live, container `triage-service` melakukan langkah berikut ketika startup:
 1. Mengunduh atau membaca tokenizer dan base model `google/gemma-2b-it` dari Hugging Face menggunakan `HF_TOKEN`.
 2. Memuat model Gemma 2B ke CPU atau GPU yang tersedia.
 3. Memasang adapter LoRA hasil fine-tuning dari folder `/app/adapter`.
@@ -117,11 +114,12 @@ Saat `DEMO_MODE=false`, container `triage-service` melakukan langkah berikut ket
 Loading pertama dapat memerlukan waktu dan ruang disk yang besar karena base model Gemma belum tersedia di cache container. Backend dapat mengembalikan status `503` selama proses loading berlangsung. Konfigurasi Docker saat ini menggunakan paket PyTorch CPU; pada mesin tanpa GPU, inference tetap berjalan tetapi respons triage dapat lebih lambat. Dukungan GPU memerlukan image dan runtime Docker yang dikonfigurasi khusus untuk CUDA.
 
 Jika backend dijalankan di luar Docker dari folder `backend`, isi `TRIAGE_SERVICE_URL=http://localhost:8001` di `backend/.env`. Docker Compose mengatur alamat service ini secara otomatis ke `http://triage-service:8001`.
+Untuk backend yang di-deploy (misalnya Vercel), isi `TRIAGE_SERVICE_URL` dengan URL service Gemma yang dapat dijangkau dari backend. Jika service belum hidup, balasan supplier akan masuk ke review manual.
 
 ### Model Fine-Tuning (Kepatuhan Kompetisi)
 
 Sesuai dengan syarat kompetisi *"Model wajib di fine tune sesuai dengan inovasi fitur per tim"*, kami telah menyiapkan dataset dan pipeline fine-tuning di dalam direktori `/model-tuning`. 
 
-Dataset `dataset_triage.jsonl` digunakan untuk fine-tuning model triage Gemma 2B dengan adapter LoRA. Adapter hasil training disimpan di `/triage-service/adapter` dan dipakai oleh service FastAPI saat `DEMO_MODE=false`. Pada `DEMO_MODE=true`, service triage tidak memuat Gemma; backend memakai heuristik demo agar aplikasi dapat dijalankan tanpa download model besar.
+Dataset `dataset_triage.jsonl` digunakan untuk fine-tuning model triage Gemma 2B dengan adapter LoRA. Adapter hasil training disimpan di `/triage-service/adapter` dan dipakai oleh service FastAPI dalam kedua mode. Jika Gemma belum tersedia, balasan ditandai perlu review manual.
 
 

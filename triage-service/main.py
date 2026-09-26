@@ -4,9 +4,8 @@ Pasokin Triage Service
 Layanan inference kecil yang meng-host model Gemma 2B + LoRA adapter
 hasil fine-tuning (lihat /model-tuning/pasokin_finetune_colab.ipynb).
 
-Menggantikan panggilan Gemini API khusus untuk tugas triase balasan
-WhatsApp supplier. Komponen AI lain (parsing kebutuhan, reasoning
-alokasi, draft RFQ) tetap pakai Gemini di backend Node.js.
+Mengklasifikasikan balasan WhatsApp supplier, termasuk balasan simulasi
+saat mode demo. Gemini di backend Node.js hanya mem-parsing RFQ buyer.
 
 Jalankan lokal:
     uvicorn main:app --host 0.0.0.0 --port 8001
@@ -39,7 +38,6 @@ load_dotenv()
 BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "google/gemma-2b-it")
 ADAPTER_PATH = os.environ.get("ADAPTER_PATH", "./adapter")
 USE_4BIT = os.environ.get("USE_4BIT", "auto")  # "auto" | "true" | "false"
-DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
 
 SYSTEM_INSTRUCTION = (
     "Kamu adalah asisten triase balasan supplier untuk sistem procurement Pasokin. "
@@ -81,14 +79,6 @@ def _resolve_use_4bit() -> bool:
 @app.on_event("startup")
 def load_model():
     global _model, _tokenizer
-
-    if DEMO_MODE:
-        logger.warning(
-            "DEMO_MODE=true: melewati loading model Gemma 2B + adapter. "
-            "Backend Node.js dalam DEMO_MODE tidak pernah memanggil /triage, "
-            "jadi service ini cukup tetap hidup tanpa model untuk keperluan demo."
-        )
-        return
 
     cuda_available = torch.cuda.is_available()
     use_4bit = _resolve_use_4bit()

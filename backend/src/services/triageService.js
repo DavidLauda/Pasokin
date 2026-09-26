@@ -1,34 +1,8 @@
 const axios = require('axios');
-const configService = require('./configService');
 
 const TRIAGE_SERVICE_URL = process.env.TRIAGE_SERVICE_URL || 'http://localhost:8001';
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// Sama persis dengan heuristik demo mode yang lama di geminiService.js,
-// dipertahankan supaya DEMO_MODE=true masih jalan tanpa perlu GPU/model loaded.
 async function classifySupplierReply(requirementSnapshot, allocationSnapshot, replyText) {
-    if (await configService.isDemoMode()) {
-        await sleep(2000);
-        if (replyText.toLowerCase().includes('bisa') || replyText.toLowerCase().includes('oke') || replyText.toLowerCase().includes('siap')) {
-            return {
-                classification: "confirmed",
-                ai_summary: "Supplier menyetujui kuantitas, harga, dan jadwal sesuai permintaan.",
-                ai_extracted: {
-                    qty: allocationSnapshot.qty,
-                    price: allocationSnapshot.price,
-                    lead_time_days: allocationSnapshot.lead_time_days
-                }
-            };
-        } else {
-            return {
-                classification: "needs_manual_review",
-                ai_summary: "Supplier tampaknya melakukan negosiasi ulang atau bertanya.",
-                ai_extracted: null
-            };
-        }
-    }
-
     const textInput = `Konteks RFQ: Material ${requirementSnapshot.materialName}, ` +
         `kuantitas diminta ${allocationSnapshot.qty} ${requirementSnapshot.unit}, ` +
         `target harga Rp ${allocationSnapshot.price}, ` +
@@ -36,6 +10,7 @@ async function classifySupplierReply(requirementSnapshot, allocationSnapshot, re
         `Balasan Supplier: ${replyText}`;
 
     try {
+        // Mode demo hanya memalsukan transport WhatsApp; triase tetap memakai Gemma.
         const response = await axios.post(
             `${TRIAGE_SERVICE_URL}/triage`,
             { text_input: textInput },
@@ -50,10 +25,10 @@ async function classifySupplierReply(requirementSnapshot, allocationSnapshot, re
             ai_extracted
         };
     } catch (e) {
-        console.error("Triage service gagal atau tidak dapat dihubungi", e.message);
+        console.error("Triage service Gemma gagal atau tidak dapat dihubungi", e.message);
         return {
             classification: "needs_manual_review",
-            ai_summary: "Terjadi error saat analisis AI (triage service). Butuh review manual.",
+            ai_summary: "Gemma tidak dapat menganalisis balasan supplier. Butuh review manual.",
             ai_extracted: null
         };
     }

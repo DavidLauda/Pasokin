@@ -9,6 +9,29 @@ const optimizerService = require('../services/optimizerService');
 const crypto = require('crypto');
 const procurementsStore = require('../services/procurementsStore');
 
+function simulatedSupplierMessage(style, dispatch) {
+    const { qty, price, lead_time_days } = dispatch.allocation_snapshot;
+    const unit = dispatch.requirement_snapshot.unit || 'unit';
+    const quantity = `${Number(qty).toLocaleString('id-ID')} ${unit}`;
+    const targetPrice = Number(price);
+    const targetDays = Number(lead_time_days);
+    const priceText = Number.isFinite(targetPrice) && targetPrice > 0
+        ? `Rp ${targetPrice.toLocaleString('id-ID')} per ${unit}` : 'harga yang diminta';
+    const deliveryText = Number.isFinite(targetDays) && targetDays > 0
+        ? `dalam ${targetDays} hari` : 'sesuai jadwal yang diminta';
+
+    if (style === 'confirmed') {
+        return `Baik, kami setuju. Stok ${quantity} tersedia, harga ${priceText}, dan bisa dikirim ${deliveryText}.`;
+    }
+    if (style === 'negotiate') {
+        const offeredPrice = Number.isFinite(targetPrice) && targetPrice > 0
+            ? `Rp ${Math.ceil(targetPrice * 1.05).toLocaleString('id-ID')} per ${unit}`
+            : 'harga lebih tinggi dari penawaran awal';
+        return `Stok ${quantity} tersedia, tetapi kami hanya bisa menawarkan ${offeredPrice}. Apakah harga baru ini disetujui?`;
+    }
+    return `Maaf, stok ${dispatch.requirement_snapshot.materialName || 'material'} sedang kosong. Kami belum bisa memenuhi permintaan ini.`;
+}
+
 router.get('/', async (req, res) => {
     let replies = await repliesStore.getAllReplies();
     if (req.query.status) {
@@ -154,16 +177,7 @@ router.post('/simulate', async (req, res) => {
     const procurement = await procurementsStore.get(procurement_id);
     if (!procurement) return res.status(404).json({ error: 'Procurement tidak ditemukan' });
 
-    let simulatedMessage = "";
-    if (style === "confirmed") {
-        simulatedMessage = "Baik pak, stok ada dan harga Rp 62.000 cocok. Bisa kita kirim besok.";
-    } else if (style === "negotiate") {
-        simulatedMessage = "Waduh pak, kalau Rp 62.000 ga dapet sekarang. Harganya naik jadi Rp 65.000. Gimana?";
-    } else {
-        simulatedMessage = "Maaf pak, barang kosong.";
-    }
-    
-    simulatedMessage = `[${procurement.reference_code}] ${simulatedMessage}`;
+    const simulatedMessage = `[${procurement.reference_code}] ${simulatedSupplierMessage(style, latestDispatch)}`;
     console.log("Simulated message:", simulatedMessage);
 
     const supplierUuid = await procurementsStore.supplierUuid(latestDispatch.supplier_id);
@@ -229,14 +243,7 @@ router.post('/simulate-all', async (req, res) => {
         // Variasikan secara selang-seling (atau bisa random)
         const style = styles[index % 2];
         
-        let simulatedMessage = "";
-        if (style === "confirmed") {
-            simulatedMessage = `Baik pak, stok ada dan harga sesuai. Bisa kita kirim segera.`;
-        } else {
-            simulatedMessage = `Waduh pak, kalau harga segitu ga dapet sekarang. Harganya naik sedikit. Gimana?`;
-        }
-
-        simulatedMessage = `[${procurement.reference_code}] ${simulatedMessage}`;
+        const simulatedMessage = `[${procurement.reference_code}] ${simulatedSupplierMessage(style, log)}`;
         const supplierUuid = await procurementsStore.supplierUuid(log.supplier_id);
         const message = await procurementsStore.addMessage({ procurementId: procurement_id,
             supplierId: supplierUuid, direction: 'inbound', rawText: simulatedMessage });
@@ -261,9 +268,7 @@ router.post('/simulate-all', async (req, res) => {
         newReplies.push({ replyEntry, log, message });
     }
 
-    // Klasifikasikan tiap reply lewat pipeline triage yang sama dengan endpoint
-    // /simulate (fine-tuned triage model / heuristik demo), bukan Gemini langsung,
-    // supaya konsisten dengan alur balasan WhatsApp asli.
+    // Gunakan pipeline Gemma yang sama dengan /simulate dan balasan WhatsApp asli.
     await Promise.allSettled(
         newReplies.map(item => whatsappService.processReplyClassification(item.replyEntry, item.log, item.message.id))
     );
